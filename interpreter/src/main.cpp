@@ -3,7 +3,7 @@
 #include "ErrorHandler.h"
 
 int main() {
-    std::string code = "// =\n [] /* {{{{{}}}}} = + +=*/ ==";
+    std::string code = "**\n\n/* \n***/  a";
     ErrorHandler errorHandler = ErrorHandler();
     Scanner scanner(code, errorHandler);
     

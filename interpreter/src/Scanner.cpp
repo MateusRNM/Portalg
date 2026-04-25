@@ -29,7 +29,7 @@ Scanner::Scanner(const std::string& source, ErrorHandler& errorHandler) : source
 }
 
 bool Scanner::isAtEnd() {
-    return current >= source.size();
+    return current >= source.length();
 }
 
 char Scanner::advance() {
@@ -40,7 +40,7 @@ char Scanner::advance() {
 bool Scanner::match(char expected) {
     if(isAtEnd()) return false;
     if(source[current] != expected) return false;
-    current++;
+    advance();
     return true;
 }
 
@@ -138,7 +138,9 @@ void Scanner::scanToken() {
         case '>': addToken(match('=') ? TokenType::GREATER_EQUAL : TokenType::GREATER); break;
         case '<': addToken(match('=') ? TokenType::LESS_EQUAL : TokenType::LESS); break;
         default:
-            errorHandler.error(line, column, "Caractere inesperado: " + c);
+            std::string error_message = "Caractere inesperado: ";
+            error_message += c;
+            errorHandler.error(line, column-1, error_message);
             break;
     }
 }
