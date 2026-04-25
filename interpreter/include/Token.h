@@ -9,7 +9,7 @@ enum class TokenType {
     AMPERSAND,
 
     MINUS, PLUS, SLASH, STAR, MOD,
-    POTENCY,                      
+    POTENCY,          
     PLUS_PLUS, MINUS_MINUS,       
 
     EQUAL,                     

@@ -13,7 +13,7 @@ class Scanner {
         int start = 0;
         int current = 0;
         int line = 1;
-        int column = 1;
+        int column = 0;
         static const std::unordered_map<std::string, TokenType> keywords;
 
         bool isAtEnd();
