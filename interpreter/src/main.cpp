@@ -3,7 +3,7 @@
 #include "ErrorHandler.h"
 
 int main() {
-    std::string code = "**\n\n/* \n***/  a";
+    std::string code = "\"Alguma string top\nSlk\"";
     ErrorHandler errorHandler = ErrorHandler();
     Scanner scanner(code, errorHandler);
     

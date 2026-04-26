@@ -54,11 +54,45 @@ char Scanner::peekNext() {
     return source[current+1];
 }
 
-void Scanner::addToken(TokenType type) {
-    std::string text = source.substr(start, current-start);
-    int startColumn = column - text.length();
-    if(startColumn < 1) startColumn = 1;
-    tokens.emplace_back(Token{type, text, line, startColumn});
+void Scanner::string() {
+    std::string value = "";
+    while(peek() != '"' && !isAtEnd()) {
+        if(peek() == '\n') {
+            line++;
+            column = 0;
+        }
+
+        if(peek() == '\\') {
+            advance();
+
+            if(peek() == 'n') {
+                value += '\n';
+            } else {
+                value += peek();
+            }
+
+            if(!isAtEnd()) {
+                advance();
+            }
+        } else {
+            value += peek();
+            advance();
+        }
+    }
+
+    if(isAtEnd()) {
+        errorHandler.error(startLineGlobal, startColumnGlobal, "Texto indeterminado.");
+        return;
+    }
+    
+    advance();
+
+    addToken(TokenType::LITERAL_TEXT, value);
+}
+
+void Scanner::addToken(TokenType type, std::string text = "") {
+    if(text == "") text = source.substr(start, current-start);
+    tokens.emplace_back(Token{type, text, startLineGlobal, startColumnGlobal});
 }
 
 void Scanner::scanToken() {
@@ -101,7 +135,7 @@ void Scanner::scanToken() {
                 addToken(TokenType::MINUS);
             }
             break;
-        case '*': 
+        case '*':
             if(match('*')) {
                 addToken(match('=') ? TokenType::POTENCY_EQUAL : TokenType::POTENCY); 
             } else {
@@ -111,22 +145,18 @@ void Scanner::scanToken() {
         case '/':
             if(match('/')) {
                 while(peek() != '\n' && !isAtEnd()) advance();
-                line++;
-                column = 0;
             } else if(match('*')) {
                 while(!isAtEnd()) {
-                    if(peek() == '\n') {
-                        line++;
-                        column = 0;
-                    }
-
                     if(peek() == '*' && peekNext() == '/') {
                         advance();
                         advance();
                         break;
                     }
 
-                    advance();
+                    if(advance() == '\n') {
+                        line++;
+                        column = 0;
+                    }
                 }
             } else {
                 addToken(match('=') ? TokenType::SLASH_EQUAL : TokenType::SLASH); 
@@ -137,10 +167,11 @@ void Scanner::scanToken() {
         case '!': addToken(match('=') ? TokenType::NOT_EQUAL : TokenType::NOT); break;
         case '>': addToken(match('=') ? TokenType::GREATER_EQUAL : TokenType::GREATER); break;
         case '<': addToken(match('=') ? TokenType::LESS_EQUAL : TokenType::LESS); break;
+        case '"': string(); break;
         default:
             std::string error_message = "Caractere inesperado: ";
             error_message += c;
-            errorHandler.error(line, column-1, error_message);
+            errorHandler.error(line, column, error_message);
             break;
     }
 }
@@ -148,6 +179,8 @@ void Scanner::scanToken() {
 std::vector<Token> Scanner::scanTokens() {
     while(!isAtEnd()) {
         start = current;
+        startLineGlobal = line;
+        startColumnGlobal = column == 0 ? 1 : column;
         scanToken();
     }
 

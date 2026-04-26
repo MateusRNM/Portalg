@@ -11,6 +11,8 @@ class Scanner {
         std::vector<Token> tokens;
         ErrorHandler& errorHandler;
         int start = 0;
+        int startLineGlobal = 1;
+        int startColumnGlobal = 1;
         int current = 0;
         int line = 1;
         int column = 0;
@@ -18,7 +20,7 @@ class Scanner {
 
         bool isAtEnd();
         void scanToken();
-        void addToken(TokenType type);
+        void addToken(TokenType type, std::string text);
         char advance();
         bool match(char expected);
         char peek();
