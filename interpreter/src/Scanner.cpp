@@ -54,6 +54,59 @@ char Scanner::peekNext() {
     return source[current+1];
 }
 
+void Scanner::character() {
+    std::string value = "";
+    bool localError = false;
+    while(peek() != '\'' && !isAtEnd()) {
+
+        if(peek() == '\n') {
+            line++;
+            column = 0;
+            if(!localError) {
+                errorHandler.error(startLineGlobal, startColumnGlobal, "Quebra de linha não permitida dentro de um caractere.");
+                localError = true;
+            }
+        }
+
+        if(peek() == '\\') {
+            advance();
+            
+            if(peek() == 'n') {
+                value += '\n';
+            } else {
+                value += peek();
+            }
+
+            if(!isAtEnd()) {
+                advance();
+            }
+        } else {
+            value += peek();
+            advance();
+        }
+    }
+
+    if(isAtEnd()) {
+        errorHandler.error(startLineGlobal, startColumnGlobal, "Caractere indeterminado.");
+        return;
+    }
+
+    advance();
+
+    if(value.length() > 1) {
+        if(!localError) {
+            errorHandler.error(startLineGlobal, startColumnGlobal, "Um caractere deve conter exatamente uma letra/símbolo.");
+        }
+        return;
+    }
+
+    if(localError) {
+        return;
+    }
+
+    addToken(TokenType::LITERAL_CHAR, value);
+}
+
 void Scanner::string() {
     std::string value = "";
     while(peek() != '"' && !isAtEnd()) {
@@ -91,7 +144,7 @@ void Scanner::string() {
 }
 
 void Scanner::addToken(TokenType type, std::string text = "") {
-    if(text == "") text = source.substr(start, current-start);
+    if(text == "" && type != TokenType::LITERAL_CHAR && type != TokenType::LITERAL_TEXT) text = source.substr(start, current-start);
     tokens.emplace_back(Token{type, text, startLineGlobal, startColumnGlobal});
 }
 
@@ -115,6 +168,7 @@ void Scanner::scanToken() {
         case ',': addToken(TokenType::COMMA); break;
         case '.': addToken(TokenType::DOT); break;
         case ':': addToken(TokenType::COLON); break;
+        case ';': addToken(TokenType::SEMICOLON); break;
         case '?': addToken(TokenType::QUERY); break;
         case '&': addToken(TokenType::AMPERSAND); break;
         case '+':
@@ -168,6 +222,7 @@ void Scanner::scanToken() {
         case '>': addToken(match('=') ? TokenType::GREATER_EQUAL : TokenType::GREATER); break;
         case '<': addToken(match('=') ? TokenType::LESS_EQUAL : TokenType::LESS); break;
         case '"': string(); break;
+        case '\'': character(); break;
         default:
             std::string error_message = "Caractere inesperado: ";
             error_message += c;
