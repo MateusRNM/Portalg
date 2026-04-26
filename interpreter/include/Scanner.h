@@ -20,7 +20,7 @@ class Scanner {
 
         bool isAtEnd();
         void scanToken();
-        void addToken(TokenType type, std::string text);
+        void addToken(TokenType type, std::string text = "");
         char advance();
         bool match(char expected);
         char peek();

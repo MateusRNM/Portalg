@@ -54,6 +54,10 @@ char Scanner::peekNext() {
     return source[current+1];
 }
 
+bool Scanner::isDigit(char c) {
+    return c >= '0' && c <= '9';
+}
+
 void Scanner::character() {
     std::string value = "";
     bool localError = false;
@@ -143,7 +147,19 @@ void Scanner::string() {
     addToken(TokenType::LITERAL_TEXT, value);
 }
 
-void Scanner::addToken(TokenType type, std::string text = "") {
+void Scanner::number() {
+    while(isDigit(peek())) advance();
+
+    if(peek() == '.' && isDigit(peekNext())) {
+        advance();
+        while(isDigit(peek())) advance();
+        addToken(TokenType::LITERAL_REAL);
+    } else {
+        addToken(TokenType::LITERAL_INTEGER);
+    }
+}
+
+void Scanner::addToken(TokenType type, std::string text) {
     if(text == "" && type != TokenType::LITERAL_CHAR && type != TokenType::LITERAL_TEXT) text = source.substr(start, current-start);
     tokens.emplace_back(Token{type, text, startLineGlobal, startColumnGlobal});
 }
@@ -224,9 +240,13 @@ void Scanner::scanToken() {
         case '"': string(); break;
         case '\'': character(); break;
         default:
-            std::string error_message = "Caractere inesperado: ";
-            error_message += c;
-            errorHandler.error(line, column, error_message);
+            if(isDigit(c)) {
+                number();
+            } else {
+                std::string error_message = "Caractere inesperado: ";
+                error_message += c;
+                errorHandler.error(line, column, error_message);
+            }
             break;
     }
 }
