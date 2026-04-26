@@ -1,6 +1,6 @@
 #include "Scanner.h"
 
-const std::unordered_map<std::string, TokenType> keywords = {
+const std::unordered_map<std::string, TokenType> Scanner::keywords = {
     { "e", TokenType::AND },
     { "ou", TokenType::OR },
     { "inteiro", TokenType::KW_INTEGER },
@@ -56,6 +56,25 @@ char Scanner::peekNext() {
 
 bool Scanner::isDigit(char c) {
     return c >= '0' && c <= '9';
+}
+
+bool Scanner::isAlpha(char c) {
+    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_';
+}
+
+bool Scanner::isAlphaNumeric(char c) {
+    return isAlpha(c) || isDigit(c);
+}
+
+void Scanner::identifier() {
+    while(isAlphaNumeric(peek())) advance();
+    std::string text = source.substr(start, current-start);
+    auto it = keywords.find(text);
+    if(it != keywords.end()) {
+        addToken(it->second);
+    } else {
+        addToken(TokenType::IDENTIFIER);
+    }
 }
 
 void Scanner::character() {
@@ -242,6 +261,8 @@ void Scanner::scanToken() {
         default:
             if(isDigit(c)) {
                 number();
+            } else if(isAlpha(c)) {
+                identifier();
             } else {
                 std::string error_message = "Caractere inesperado: ";
                 error_message += c;
