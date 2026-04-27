@@ -1,10 +1,18 @@
 #pragma once
 #include <string>
+#include <vector>
+
+struct Error {
+    int line;
+    int column;
+    std::string message;
+};
 
 class ErrorHandler {
     private:
-        void report(int line, int column, std::string message);
+        std::vector<Error> errors;
     public:
-        bool hadError = false;
         void error(int line, int column, std::string message);
+        bool haveErrors();
+        void report();
 };

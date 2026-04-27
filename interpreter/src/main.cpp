@@ -29,9 +29,13 @@ void run(const std::string& source) {
     
     std::vector<Token> tokens = scanner.scanTokens();
 
-    std::cout << "--- TOKENS ---\n";
-    for (const Token& token : tokens) {
-        std::cout << "[Linha " << token.line << " | Col " << token.column << "] " << tokenTypeToString(token.type) << " -> Lexema: '" << token.lexeme << "'\n";
+    if(errorHandler.haveErrors()) {
+        errorHandler.report();
+    } else {
+        std::cout << "--- TOKENS ---\n";
+        for (const Token& token : tokens) {
+            std::cout << "[Linha " << token.line << " | Col " << token.column << "] " << tokenTypeToString(token.type) << " -> Lexema: '" << token.lexeme << "'\n";
+        }
     }
 }
 
@@ -51,10 +55,10 @@ void runFile(const char* path) {
 
 void runPrompt() {
     std::string line;
-    std::cout << "Portalg REPL (Digite 'sair' para encerrar)\n";
+    std::cout << "Portalg REPL (Digite 'sair' para encerrar)";
     
     for (;;) {
-        std::cout << "> ";
+        std::cout << "\n> ";
         if (!std::getline(std::cin, line) || line == "sair") break;
         run(line);
     }
