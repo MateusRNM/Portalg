@@ -191,6 +191,7 @@ void Scanner::scanToken() {
         case '\t':
             break;
         case '\n':
+            addToken(TokenType::NEWLINE);
             line++;
             column = 0;
             break;

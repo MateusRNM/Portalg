@@ -4,6 +4,8 @@
 #include <string>
 #include <vector>
 #include "Scanner.h"
+#include "Stmt.h"
+#include "Parser.h"
 #include "ErrorHandler.h"
 #include "Token.h"
 
@@ -31,12 +33,17 @@ void run(const std::string& source) {
 
     if(errorHandler.haveErrors()) {
         errorHandler.report();
-    } else {
-        std::cout << "--- TOKENS ---\n";
-        for (const Token& token : tokens) {
-            std::cout << "[Linha " << token.line << " | Col " << token.column << "] " << tokenTypeToString(token.type) << " -> Lexema: '" << token.lexeme << "'\n";
-        }
+        return;
     }
+
+    // Parser parser(tokens, errorHandler);
+
+    // std::vector<std::unique_ptr<Stmt>> ast = parser.parse();
+
+    // if(errorHandler.haveErrors()) {
+    //     errorHandler.report();
+    //     return;
+    // }
 }
 
 void runFile(const char* path) {

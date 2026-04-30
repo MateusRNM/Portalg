@@ -1,7 +1,17 @@
 #pragma once
+#include <vector>
+#include <string>
+#include <memory>
+#include <initializer_list>
+#include <stdexcept>
 #include "Token.h"
 #include "Stmt.h"
 #include "ErrorHandler.h"
+
+class ParseError : public std::runtime_error {
+    public:
+        ParseError() : std::runtime_error("Parse Error") {}
+};
 
 class Parser {
     private:
@@ -14,6 +24,7 @@ class Parser {
         Token advance();
         bool check(TokenType type);
         bool match(std::initializer_list<TokenType> types);
+        ParseError error(Token token, std::string message);
         Token consume(TokenType type, std::string message);
         void synchronize();
         std::unique_ptr<Expr> expression();
@@ -32,9 +43,9 @@ class Parser {
         std::vector<std::unique_ptr<Expr>> arguments();
         std::unique_ptr<Expr> primary();
         std::vector<std::unique_ptr<Stmt>> declaration();
-        std::vector<std::unique_ptr<Stmt>> varDecl();
         std::vector<std::unique_ptr<Stmt>> constDecl();
-        std::unique_ptr<Stmt> funcDecl();
+        std::vector<std::unique_ptr<Stmt>> varDecl(std::vector<Token> declType, Token name);
+        std::unique_ptr<Stmt> funcDecl(std::vector<Token> declType, Token name);
         std::vector<FunctionParam> parameters();
         std::vector<Token> type();
         std::unique_ptr<Stmt> statement();

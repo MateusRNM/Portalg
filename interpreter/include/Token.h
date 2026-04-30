@@ -38,7 +38,7 @@ enum class TokenType {
     LITERAL_CHAR,                  
     LITERAL_TRUE, LITERAL_FALSE,   
 
-    EOF_TOKEN
+    NEWLINE, EOF_TOKEN
 };
 
 struct Token {
