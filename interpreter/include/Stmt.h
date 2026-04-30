@@ -44,11 +44,11 @@ public:
 
 class VarDeclStmt : public Stmt {
 public:
-    Token type;
+    std::vector<Token> type;
     Token name;
     bool isConst;
     std::unique_ptr<Expr> initializer;
-    VarDeclStmt(Token type, Token name, bool isConst, std::unique_ptr<Expr> initializer) 
+    VarDeclStmt(std::vector<Token> type, Token name, bool isConst, std::unique_ptr<Expr> initializer) 
         : type(type), name(name), isConst(isConst), initializer(std::move(initializer)) {}
     void accept(StmtVisitor* visitor) override { visitor->visitVarDeclStmt(this); }
 };
