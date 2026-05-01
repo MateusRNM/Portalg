@@ -114,20 +114,20 @@ public:
 
 class CallExpr : public Expr {
 public:
-    Token callee;
+    std::unique_ptr<Expr> callee;
     std::vector<std::unique_ptr<Expr>> arguments;
-    CallExpr(Token callee, std::vector<std::unique_ptr<Expr>> arguments)
-        : callee(callee), arguments(std::move(arguments)) {}
+    CallExpr(std::unique_ptr<Expr> callee, std::vector<std::unique_ptr<Expr>> arguments)
+        : callee(std::move(callee)), arguments(std::move(arguments)) {}
     std::any accept(ExprVisitor* visitor) override { return visitor->visitCallExpr(this); }
 };
 
 class MethodCallExpr : public Expr {
 public:
-    Token objectName;
+    std::unique_ptr<Expr> object;
     Token methodName;
     std::vector<std::unique_ptr<Expr>> arguments;
-    MethodCallExpr(Token objectName, Token methodName, std::vector<std::unique_ptr<Expr>> arguments) 
-        : objectName(objectName), methodName(methodName), arguments(std::move(arguments)) {}
+    MethodCallExpr(std::unique_ptr<Expr> object, Token methodName, std::vector<std::unique_ptr<Expr>> arguments) 
+        : object(std::move(object)), methodName(methodName), arguments(std::move(arguments)) {}
     std::any accept(ExprVisitor* visitor) override { return visitor->visitMethodCallExpr(this); }
 };
 

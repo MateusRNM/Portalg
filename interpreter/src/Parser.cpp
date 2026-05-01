@@ -75,6 +75,42 @@ bool Parser::match(std::initializer_list<TokenType> types) {
     return false;
 }
 
+std::unique_ptr<Expr> Parser::call() {
+    std::unique_ptr<Expr> expr = primary();
+    while(true) {
+        if(match({TokenType::LEFT_BRACKET})) {
+            std::unique_ptr<Expr> index = expression();
+            consume(TokenType::RIGHT_BRACKET, "Esperado ']' após o índice.");
+            expr = std::make_unique<IndexAccessExpr>(std::move(expr), std::move(index));
+        } else if(match({TokenType::LEFT_PAREN})) {
+            std::vector<std::unique_ptr<Expr>> args;
+            if(!check(TokenType::RIGHT_PAREN)) {
+                args.emplace_back(std::move(expression()));
+                while(match({TokenType::COMMA})) {
+                    args.emplace_back(std::move(expression()));
+                }
+            }
+            consume(TokenType::RIGHT_PAREN, "Esperado ) para fechar a chamada de função.");
+            expr = std::make_unique<CallExpr>(std::move(expr), std::move(args));
+        } else if(match({TokenType::DOT})) {
+            Token name = consume(TokenType::IDENTIFIER, "Esperado o identificador do método após o '.'");
+            consume(TokenType::LEFT_PAREN, "Esperado ( para abrir a chamada de função.");
+            std::vector<std::unique_ptr<Expr>> args;
+            if(!check(TokenType::RIGHT_PAREN)) {
+                args.emplace_back(std::move(expression()));
+                while(match({TokenType::COMMA})) {
+                    args.emplace_back(std::move(expression()));
+                }
+            }
+            consume(TokenType::RIGHT_PAREN, "Esperado ) para fechar a chamada de função.");
+            expr = std::make_unique<MethodCallExpr>(std::move(expr), name, std::move(args));
+        } else {
+            break;
+        }
+    }
+    return expr;
+}
+
 std::unique_ptr<Expr> Parser::postfix() {
     std::unique_ptr<Expr> leftExpr = call();
     if(match({TokenType::PLUS_PLUS, TokenType::MINUS_MINUS})) {
