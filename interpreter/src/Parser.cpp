@@ -75,6 +75,38 @@ bool Parser::match(std::initializer_list<TokenType> types) {
     return false;
 }
 
+std::unique_ptr<Expr> Parser::expression() {
+    return assignment();
+}
+
+std::unique_ptr<Expr> Parser::assignment() {
+    std::unique_ptr<Expr> expr = ternary();
+    if(match({TokenType::EQUAL, TokenType::PLUS_EQUAL, TokenType::MINUS_EQUAL, TokenType::SLASH_EQUAL, TokenType::STAR_EQUAL, TokenType::POTENCY_EQUAL})) {
+        Token op = previous();
+        std::unique_ptr<Expr> value = assignment();
+        if(VariableExpr* varExpr = dynamic_cast<VariableExpr*>(expr.get())) {
+            return std::make_unique<AssignExpr>(varExpr->name, op, std::move(value));
+        } else if(IndexAccessExpr* indexAccessExpr = dynamic_cast<IndexAccessExpr*>(expr.get())) {
+            return std::make_unique<IndexAssignExpr>(indexAccessExpr->name, std::move(indexAccessExpr->index), op, std::move(value));
+        }
+
+        throw error(op, "Atribuição inválida.");
+    }
+    return expr;
+}
+
+std::unique_ptr<Stmt> Parser::statement() {
+    if(match({TokenType::IF})) return ifStmt();
+    if(match({TokenType::WHILE})) return whileStmt();
+    if(match({TokenType::FOR})) return forStmt();
+    if(match({TokenType::RETURN})) return returnStmt();
+    if(match({TokenType::BREAK})) return breakStmt();
+    if(match({TokenType::CONTINUE})) return continueStmt();
+    if(match({TokenType::SWITCH})) return switchStmt();
+    if(match({TokenType::LEFT_BRACE})) return block();
+    return exprStmt();
+}
+
 std::vector<std::unique_ptr<Stmt>> Parser::declaration() {
     std::vector<std::unique_ptr<Stmt>> declarations;
     if(check(TokenType::KW_CONST)) {
