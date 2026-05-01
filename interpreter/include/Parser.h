@@ -40,7 +40,6 @@ class Parser {
         std::unique_ptr<Expr> unary();
         std::unique_ptr<Expr> postfix();
         std::unique_ptr<Expr> call();
-        std::vector<std::unique_ptr<Expr>> arguments();
         std::unique_ptr<Expr> primary();
         std::vector<std::unique_ptr<Stmt>> declaration();
         std::vector<std::unique_ptr<Stmt>> constDecl();

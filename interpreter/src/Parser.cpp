@@ -75,6 +75,37 @@ bool Parser::match(std::initializer_list<TokenType> types) {
     return false;
 }
 
+std::unique_ptr<Expr> Parser::primary() {
+    if(match({TokenType::LITERAL_FALSE, TokenType::LITERAL_TRUE})) {
+        return std::make_unique<LiteralExpr>(previous().type == TokenType::LITERAL_FALSE ? false : true);
+    } else if(match({TokenType::LITERAL_TEXT, TokenType::LITERAL_CHAR})) {
+        Token literal = previous();
+        if(literal.type == TokenType::LITERAL_TEXT) return std::make_unique<LiteralExpr>(literal.lexeme);
+        else return std::make_unique<LiteralExpr>(literal.lexeme[0]);
+    } else if(match({TokenType::LITERAL_INTEGER, TokenType::LITERAL_REAL})) {
+        Token literal = previous();
+        if(literal.type == TokenType::LITERAL_INTEGER) return std::make_unique<LiteralExpr>(std::stoll(literal.lexeme));
+        else return std::make_unique<LiteralExpr>(std::stod(literal.lexeme));
+    } else if(match({TokenType::IDENTIFIER})) {
+        return std::make_unique<VariableExpr>(previous());
+    } else if(match({TokenType::LEFT_PAREN})) {
+        std::unique_ptr<Expr> expr = expression();
+        consume(TokenType::RIGHT_PAREN, "Esperado ) para fechar o agrupamento.");
+        return expr;
+    } else if(match({TokenType::LEFT_BRACKET})) {
+        std::vector<std::unique_ptr<Expr>> elements;
+        if(!check(TokenType::RIGHT_BRACKET)) {
+            elements.emplace_back(std::move(expression()));
+            while(match({TokenType::COMMA})) {
+                elements.emplace_back(std::move(expression()));
+            }
+        }
+        consume(TokenType::RIGHT_BRACKET, "Esperado ']'");
+        return std::make_unique<ArrayLiteralExpr>(std::move(elements));
+    }
+    throw error(peek(), "Expressão esperada.");
+}
+
 std::unique_ptr<Expr> Parser::call() {
     std::unique_ptr<Expr> expr = primary();
     while(true) {
@@ -226,7 +257,7 @@ std::unique_ptr<Expr> Parser::expression() {
 
 std::unique_ptr<Expr> Parser::assignment() {
     std::unique_ptr<Expr> expr = ternary();
-    if(match({TokenType::EQUAL, TokenType::PLUS_EQUAL, TokenType::MINUS_EQUAL, TokenType::SLASH_EQUAL, TokenType::STAR_EQUAL, TokenType::POTENCY_EQUAL})) {
+    if(match({TokenType::EQUAL, TokenType::PLUS_EQUAL, TokenType::MINUS_EQUAL, TokenType::SLASH_EQUAL, TokenType::STAR_EQUAL, TokenType::POTENCY_EQUAL, TokenType::MOD_EQUAL})) {
         Token op = previous();
         std::unique_ptr<Expr> value = assignment();
         if(VariableExpr* varExpr = dynamic_cast<VariableExpr*>(expr.get())) {

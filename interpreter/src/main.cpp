@@ -18,6 +18,7 @@ std::string tokenTypeToString(TokenType type) {
         case TokenType::LITERAL_INTEGER: return "LITERAL_INTEGER";
         case TokenType::LITERAL_REAL: return "LITERAL_REAL";
         case TokenType::LITERAL_TEXT: return "LITERAL_TEXT";
+        case TokenType::LITERAL_CHAR: return "LITERAL_CHAR";
         case TokenType::EQUAL: return "EQUAL";
         case TokenType::PLUS: return "PLUS";
         case TokenType::EOF_TOKEN: return "EOF_TOKEN";
@@ -34,6 +35,10 @@ void run(const std::string& source) {
     if(errorHandler.haveErrors()) {
         errorHandler.report();
         return;
+    }
+
+    for(auto token : tokens) {
+        std::cout << '\n' << tokenTypeToString(token.type) << " lexeme: " << token.lexeme;
     }
 
     // Parser parser(tokens, errorHandler);
