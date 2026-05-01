@@ -75,6 +75,115 @@ bool Parser::match(std::initializer_list<TokenType> types) {
     return false;
 }
 
+std::unique_ptr<Expr> Parser::postfix() {
+    std::unique_ptr<Expr> leftExpr = call();
+    if(match({TokenType::PLUS_PLUS, TokenType::MINUS_MINUS})) {
+        Token op = previous();
+        if(dynamic_cast<VariableExpr*>(leftExpr.get()) != nullptr || dynamic_cast<IndexAccessExpr*>(leftExpr.get()) != nullptr) {
+            return std::make_unique<PrefixPostfixExpr>(std::move(leftExpr), op, false);
+        }
+        throw error(op, "Tentativa de incremento/decremento fora de variáveis.");
+    }
+    return leftExpr;
+}
+
+std::unique_ptr<Expr> Parser::unary() {
+    if(match({TokenType::NOT, TokenType::MINUS})) {
+        Token op = previous();
+        std::unique_ptr<Expr> rightExpr = unary();
+        return std::make_unique<UnaryExpr>(op, std::move(rightExpr));
+    } else if(match({TokenType::MINUS_MINUS, TokenType::PLUS_PLUS})) {
+        Token op = previous();
+        std::unique_ptr<Expr> rightExpr = unary();
+        if(dynamic_cast<VariableExpr*>(rightExpr.get()) != nullptr || dynamic_cast<IndexAccessExpr*>(rightExpr.get()) != nullptr) {
+            return std::make_unique<PrefixPostfixExpr>(std::move(rightExpr), op, true);
+        }
+        throw error(op, "Tentativa de pré-incremento/pré-decremento fora de variáveis.");
+    }
+    return postfix();
+}
+
+std::unique_ptr<Expr> Parser::exponent() {
+    std::unique_ptr<Expr> leftExpr = unary();
+    if(match({TokenType::POTENCY})) {
+        Token op = previous();
+        std::unique_ptr<Expr> rightExpr = exponent();
+        leftExpr = std::make_unique<BinaryExpr>(std::move(leftExpr), op, std::move(rightExpr));
+    }
+    return leftExpr;
+}
+
+std::unique_ptr<Expr> Parser::factor() {
+    std::unique_ptr<Expr> leftExpr = exponent();
+    while(match({TokenType::SLASH, TokenType::STAR, TokenType::MOD})) {
+        Token op = previous();
+        std::unique_ptr<Expr> rightExpr = exponent();
+        leftExpr = std::make_unique<BinaryExpr>(std::move(leftExpr), op, std::move(rightExpr));
+    }
+    return leftExpr;
+}
+
+std::unique_ptr<Expr> Parser::term() {
+    std::unique_ptr<Expr> leftExpr = factor();
+    while(match({TokenType::MINUS, TokenType::PLUS})) {
+        Token op = previous();
+        std::unique_ptr<Expr> rightExpr = factor();
+        leftExpr = std::make_unique<BinaryExpr>(std::move(leftExpr), op, std::move(rightExpr));
+    }
+    return leftExpr;
+}
+
+std::unique_ptr<Expr> Parser::comparison() {
+    std::unique_ptr<Expr> leftExpr = term();
+    while(match({TokenType::GREATER, TokenType::GREATER_EQUAL, TokenType::LESS, TokenType::LESS_EQUAL})) {
+        Token op = previous();
+        std::unique_ptr<Expr> rightExpr = term();
+        leftExpr = std::make_unique<BinaryExpr>(std::move(leftExpr), op, std::move(rightExpr));
+    }
+    return leftExpr;
+}
+
+std::unique_ptr<Expr> Parser::equality() {
+    std::unique_ptr<Expr> leftExpr = comparison();
+    while(match({TokenType::EQUAL_EQUAL, TokenType::NOT_EQUAL})) {
+        Token op = previous();
+        std::unique_ptr<Expr> rightExpr = comparison();
+        leftExpr = std::make_unique<BinaryExpr>(std::move(leftExpr), op, std::move(rightExpr));
+    }
+    return leftExpr;
+}
+
+std::unique_ptr<Expr> Parser::logic_and() {
+    std::unique_ptr<Expr> leftExpr = equality();
+    while(match({TokenType::AND})) {
+        Token op = previous();
+        std::unique_ptr<Expr> rightExpr = equality();
+        leftExpr = std::make_unique<LogicalExpr>(std::move(leftExpr), op, std::move(rightExpr));
+    }
+    return leftExpr;
+}
+
+std::unique_ptr<Expr> Parser::logic_or() {
+    std::unique_ptr<Expr> leftExpr = logic_and();
+    while(match({TokenType::OR})) {
+        Token op = previous();
+        std::unique_ptr<Expr> rightExpr = logic_and();
+        leftExpr = std::make_unique<LogicalExpr>(std::move(leftExpr), op, std::move(rightExpr));
+    }
+    return leftExpr;
+}
+
+std::unique_ptr<Expr> Parser::ternary() {
+    std::unique_ptr<Expr> expr = logic_or();
+    if(match({TokenType::QUERY})) {
+        std::unique_ptr<Expr> midExpr = expression();
+        consume(TokenType::COLON, "Dois pontos esperado no operador ternário.");
+        std::unique_ptr<Expr> rightExpr = ternary();
+        return std::make_unique<TernaryExpr>(std::move(expr), std::move(midExpr), std::move(rightExpr));
+    }
+    return expr;
+}
+
 std::unique_ptr<Expr> Parser::expression() {
     return assignment();
 }

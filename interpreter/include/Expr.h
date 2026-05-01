@@ -95,10 +95,10 @@ public:
 
 class PrefixPostfixExpr : public Expr {
 public:
-    Token name;
+    std::unique_ptr<Expr> target;
     Token op;
     bool isPrefix; 
-    PrefixPostfixExpr(Token name, Token op, bool isPrefix) : name(name), op(op), isPrefix(isPrefix) {}
+    PrefixPostfixExpr(std::unique_ptr<Expr> target, Token op, bool isPrefix) : target(std::move(target)), op(op), isPrefix(isPrefix) {}
     std::any accept(ExprVisitor* visitor) override { return visitor->visitPrefixPostfixExpr(this); }
 };
 
@@ -133,20 +133,20 @@ public:
 
 class IndexAccessExpr : public Expr {
 public:
-    Token name;
+    std::unique_ptr<Expr> target;
     std::unique_ptr<Expr> index;
-    IndexAccessExpr(Token name, std::unique_ptr<Expr> index) : name(name), index(std::move(index)) {}
+    IndexAccessExpr(std::unique_ptr<Expr> target, std::unique_ptr<Expr> index) : target(std::move(target)), index(std::move(index)) {}
     std::any accept(ExprVisitor* visitor) override { return visitor->visitIndexAccessExpr(this); }
 };
 
 class IndexAssignExpr : public Expr {
 public:
-    Token name;
+    std::unique_ptr<Expr> target;
     std::unique_ptr<Expr> index;
     Token op;
     std::unique_ptr<Expr> value;
-    IndexAssignExpr(Token name, std::unique_ptr<Expr> index, Token op, std::unique_ptr<Expr> value) 
-        : name(name), index(std::move(index)), op(op), value(std::move(value)) {}
+    IndexAssignExpr(std::unique_ptr<Expr> target, std::unique_ptr<Expr> index, Token op, std::unique_ptr<Expr> value) 
+        : target(std::move(target)), index(std::move(index)), op(op), value(std::move(value)) {}
     std::any accept(ExprVisitor* visitor) override { return visitor->visitIndexAssignExpr(this); }
 };
 
