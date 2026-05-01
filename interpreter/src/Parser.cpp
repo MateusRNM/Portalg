@@ -196,7 +196,7 @@ std::unique_ptr<Expr> Parser::assignment() {
         if(VariableExpr* varExpr = dynamic_cast<VariableExpr*>(expr.get())) {
             return std::make_unique<AssignExpr>(varExpr->name, op, std::move(value));
         } else if(IndexAccessExpr* indexAccessExpr = dynamic_cast<IndexAccessExpr*>(expr.get())) {
-            return std::make_unique<IndexAssignExpr>(indexAccessExpr->name, std::move(indexAccessExpr->index), op, std::move(value));
+            return std::make_unique<IndexAssignExpr>(std::move(indexAccessExpr->target), std::move(indexAccessExpr->index), op, std::move(value));
         }
 
         throw error(op, "Atribuição inválida.");
