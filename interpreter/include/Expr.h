@@ -33,6 +33,7 @@ public:
     virtual std::any visitIndexAssignExpr(IndexAssignExpr* expr) = 0;
     virtual std::any visitPrefixPostfixExpr(PrefixPostfixExpr* expr) = 0;
     virtual std::any visitArrayLiteralExpr(ArrayLiteralExpr* expr) = 0;
+    virtual std::any visitInstantiateExpr(InstantiateExpr* expr) = 0;
     virtual ~ExprVisitor() = default;
 };
 
@@ -155,4 +156,18 @@ public:
     std::vector<std::unique_ptr<Expr>> elements;
     ArrayLiteralExpr(std::vector<std::unique_ptr<Expr>> elements) : elements(std::move(elements)) {}
     std::any accept(ExprVisitor* visitor) override { return visitor->visitArrayLiteralExpr(this); }
+};
+
+class InstantiateExpr : public Expr {
+public:
+    std::vector<Token> type;
+    std::unique_ptr<Expr> size;
+    std::unique_ptr<Expr> initialValue;
+
+    InstantiateExpr(std::vector<Token> type, std::unique_ptr<Expr> size, std::unique_ptr<Expr> initialValue)
+        : type(type), size(std::move(size)), initialValue(std::move(initialValue)) {}
+
+    std::any accept(ExprVisitor* visitor) override {
+        return visitor->visitInstantiateExpr(this);
+    }
 };

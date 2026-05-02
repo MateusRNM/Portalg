@@ -102,6 +102,16 @@ std::unique_ptr<Expr> Parser::primary() {
         }
         consume(TokenType::RIGHT_BRACKET, "Esperado ']'");
         return std::make_unique<ArrayLiteralExpr>(std::move(elements));
+    } else if(check(TokenType::KW_CHAR) || check(TokenType::KW_INTEGER) || check(TokenType::KW_LOGIC) || check(TokenType::KW_REAL) || check(TokenType::KW_TEXT) || check(TokenType::KW_VECTOR)) {
+        std::vector<Token> instType = type();
+        consume(TokenType::LEFT_PAREN, "Esperado '(' após o tipo para instanciação.");
+        
+        std::unique_ptr<Expr> sizeExpr = expression();
+        consume(TokenType::COMMA, "O construtor exige exatamente dois argumentos: (tamanho, valor_inicial).");
+        std::unique_ptr<Expr> initExpr = expression();
+
+        consume(TokenType::RIGHT_PAREN, "Esperado ')' após os argumentos.");
+        return std::make_unique<InstantiateExpr>(instType, std::move(sizeExpr), std::move(initExpr));
     }
     throw error(peek(), "Expressão esperada.");
 }
@@ -271,6 +281,10 @@ std::unique_ptr<Expr> Parser::assignment() {
     return expr;
 }
 
+std::unique_ptr<Stmt> Parser::exprStmt() {
+    return std::make_unique<ExpressionStmt>(std::move(expression()));
+}
+
 std::unique_ptr<Stmt> Parser::statement() {
     if(match({TokenType::IF})) return ifStmt();
     if(match({TokenType::WHILE})) return whileStmt();
@@ -281,6 +295,96 @@ std::unique_ptr<Stmt> Parser::statement() {
     if(match({TokenType::SWITCH})) return switchStmt();
     if(match({TokenType::LEFT_BRACE})) return block();
     return exprStmt();
+}
+
+std::vector<Token> Parser::type() {
+    std::vector<Token> types;
+    if(match({TokenType::KW_CHAR, TokenType::KW_INTEGER, TokenType::KW_TEXT, TokenType::KW_REAL, TokenType::KW_LOGIC, TokenType::KW_VOID})) {
+        types.emplace_back(previous());
+    } else if(match({TokenType::KW_VECTOR})) {
+        types.emplace_back(previous());
+        consume(TokenType::LESS, "Esperado '<' para abrir a definição do tipo do vetor.");
+        for(Token ty : type()) {
+            types.emplace_back(ty);
+        }
+        consume(TokenType::GREATER, "Esperado '>' para fechar a definição do tipo do vetor.");
+    }
+
+    if(types.empty()) {
+        throw error(peek(), "Tipo de dado inválido ou não reconhecido.");
+    }
+
+    return types;
+}
+
+std::vector<std::unique_ptr<Stmt>> Parser::constDecl() {
+    std::vector<std::unique_ptr<Stmt>> declarations;
+    consume(TokenType::KW_CONST, "Esperado 'constante' no início da declaração de uma constante.");
+    std::vector<Token> declType = type();
+    
+    auto parseConstInit = [&]() -> std::unique_ptr<Expr> {
+        if (match({TokenType::EQUAL})) {
+            return expression();
+        } else if (match({TokenType::LEFT_PAREN})) {
+            std::unique_ptr<Expr> sizeExpr = expression();
+            consume(TokenType::COMMA, "O construtor exige exatamente dois argumentos: (tamanho, valor_inicial).");
+            std::unique_ptr<Expr> initExpr = expression();
+            consume(TokenType::RIGHT_PAREN, "Esperado ')' para fechar os argumentos.");
+            return std::make_unique<InstantiateExpr>(declType, std::move(sizeExpr), std::move(initExpr));
+        }
+        throw error(peek(), "Constantes precisam ser inicializadas.");
+    };
+
+    Token name = consume(TokenType::IDENTIFIER, "Nome da constante esperado.");
+    declarations.emplace_back(std::make_unique<VarDeclStmt>(declType, name, true, parseConstInit()));
+    
+    while(match({TokenType::COMMA})) {
+        Token nextName = consume(TokenType::IDENTIFIER, "Nome da constante esperado.");
+        declarations.emplace_back(std::make_unique<VarDeclStmt>(declType, nextName, true, parseConstInit()));
+    }
+    
+    return declarations;
+}
+
+std::vector<std::unique_ptr<Stmt>> Parser::varDecl(std::vector<Token> declType, Token name) {
+    std::vector<std::unique_ptr<Stmt>> declarations;
+
+    auto parseVarInit = [&]() -> std::unique_ptr<Expr> {
+        if(match({TokenType::EQUAL})) {
+            return expression();
+        } else if(match({TokenType::LEFT_PAREN})) {
+            std::unique_ptr<Expr> sizeExpr = expression();
+            consume(TokenType::COMMA, "O construtor exige exatamente dois argumentos: (tamanho, valor_inicial).");
+            std::unique_ptr<Expr> initExpr = expression();
+            consume(TokenType::RIGHT_PAREN, "Esperado ')' para fechar os argumentos.");
+            return std::make_unique<InstantiateExpr>(declType, std::move(sizeExpr), std::move(initExpr));
+        } else {
+            if(declType.size() == 1) {
+                std::any defaultValue;
+                if(declType[0].type == TokenType::KW_INTEGER || declType[0].type == TokenType::KW_REAL) {
+                    defaultValue = declType[0].type == TokenType::KW_INTEGER ? 0LL : 0.0;
+                } else if(declType[0].type == TokenType::KW_LOGIC) {
+                    defaultValue = false;
+                } else if(declType[0].type == TokenType::KW_CHAR) {
+                    defaultValue = '\0';
+                } else if(declType[0].type == TokenType::KW_TEXT) {
+                    defaultValue = std::string("");
+                }
+                return std::make_unique<LiteralExpr>(defaultValue);
+            } else {
+                return std::make_unique<ArrayLiteralExpr>(std::vector<std::unique_ptr<Expr>>());
+            }
+        }
+    };
+
+    declarations.emplace_back(std::make_unique<VarDeclStmt>(declType, name, false, parseVarInit()));
+
+    while(match({TokenType::COMMA})) {
+        Token nextName = consume(TokenType::IDENTIFIER, "Nome da variável esperado.");
+        declarations.emplace_back(std::make_unique<VarDeclStmt>(declType, nextName, false, parseVarInit()));
+    }
+
+    return declarations;
 }
 
 std::vector<std::unique_ptr<Stmt>> Parser::declaration() {
@@ -311,7 +415,7 @@ std::vector<std::unique_ptr<Stmt>> Parser::declaration() {
 std::vector<std::unique_ptr<Stmt>> Parser::parse() {
     std::vector<std::unique_ptr<Stmt>> statements;
     while(!isAtEnd()) {
-        if(match({TokenType::NEWLINE})) continue;
+        if(match({TokenType::NEWLINE, TokenType::SEMICOLON})) continue;
 
         try {
             for(auto& st : declaration()) {

@@ -113,18 +113,18 @@ public:
 };
 
 struct FunctionParam {
-    Token type;
+    std::vector<Token> type;
     Token name;
     bool isReference;
 };
 
 class FunctionStmt : public Stmt {
 public:
-    Token returnType;
+    std::vector<Token> returnType;
     Token name;
     std::vector<FunctionParam> params;
     std::vector<std::unique_ptr<Stmt>> body;
-    FunctionStmt(Token returnType, Token name, std::vector<FunctionParam> params, std::vector<std::unique_ptr<Stmt>> body) 
+    FunctionStmt(std::vector<Token> returnType, Token name, std::vector<FunctionParam> params, std::vector<std::unique_ptr<Stmt>> body) 
         : returnType(returnType), name(name), params(std::move(params)), body(std::move(body)) {}
     void accept(StmtVisitor* visitor) override { visitor->visitFunctionStmt(this); }
 };
