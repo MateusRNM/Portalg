@@ -160,7 +160,22 @@ void run(const std::string& source) {
 
     for(auto& node : ast) {
         if(ExpressionStmt* expr = dynamic_cast<ExpressionStmt*>(node.get())) {
-            std:: cout << printer.print(expr->expression.get()) << '\n';
+            std::cout << printer.print(expr->expression.get()) << '\n';
+        } 
+
+        else if(VarDeclStmt* varDecl = dynamic_cast<VarDeclStmt*>(node.get())) {
+            std::string tipoDecl = varDecl->isConst ? "(constante " : "(variavel ";
+            
+            std::string nomeTipo = "";
+            for(Token t : varDecl->type) nomeTipo += t.lexeme;
+            
+            std::cout << tipoDecl << nomeTipo << " " << varDecl->name.lexeme;
+            
+            if (varDecl->initializer) {
+                std::cout << " " << printer.print(varDecl->initializer.get());
+            }
+            
+            std::cout << ")\n";
         }
     }
 }

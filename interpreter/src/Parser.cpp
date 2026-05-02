@@ -285,6 +285,17 @@ std::unique_ptr<Stmt> Parser::exprStmt() {
     return std::make_unique<ExpressionStmt>(std::move(expression()));
 }
 
+std::unique_ptr<Stmt> Parser::block() {
+    std::vector<std::unique_ptr<Stmt>> statements;
+    while(!isAtEnd() && !check(TokenType::RIGHT_BRACE)) {
+        for(auto& st : declaration()) {
+            statements.emplace_back(std::move(st));
+        }
+    }
+    consume(TokenType::RIGHT_BRACE, "Esperado chave de fechamento '}'");
+    return std::make_unique<BlockStmt>(std::move(statements));
+}
+
 std::unique_ptr<Stmt> Parser::statement() {
     if(match({TokenType::IF})) return ifStmt();
     if(match({TokenType::WHILE})) return whileStmt();
@@ -396,7 +407,16 @@ std::vector<std::unique_ptr<Stmt>> Parser::declaration() {
     } else if(check(TokenType::KW_CHAR) || check(TokenType::KW_INTEGER) || check(TokenType::KW_LOGIC) || check(TokenType::KW_REAL) || check(TokenType::KW_TEXT) || check(TokenType::KW_VECTOR) || check(TokenType::KW_VOID)) {
         std::vector<Token> declType = type();
         Token name = consume(TokenType::IDENTIFIER, "Nome da variável ou função esperado.");
+
+        bool isFunction = false;
         if(check(TokenType::LEFT_PAREN)) {
+            TokenType nextType = tokens[current + 1].type; 
+            if(nextType == TokenType::RIGHT_PAREN || nextType == TokenType::KW_CHAR || nextType == TokenType::KW_INTEGER || nextType == TokenType::KW_LOGIC || nextType == TokenType::KW_REAL || nextType == TokenType::KW_TEXT || nextType == TokenType::KW_VECTOR) {
+                isFunction = true;
+            }
+        }
+
+        if(isFunction) {
             declarations.emplace_back(funcDecl(declType, name));
         } else {
             if(declType[0].type == TokenType::KW_VOID) {

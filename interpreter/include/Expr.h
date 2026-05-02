@@ -17,6 +17,7 @@ class IndexAccessExpr;
 class IndexAssignExpr;
 class PrefixPostfixExpr;
 class ArrayLiteralExpr;
+class InstantiateExpr;
 
 class ExprVisitor {
 public:
