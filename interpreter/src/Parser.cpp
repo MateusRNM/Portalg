@@ -363,6 +363,25 @@ std::unique_ptr<Stmt> Parser::forStmt() {
     return std::make_unique<ForStmt>(std::move(initializer), std::move(condition), std::move(increment), std::move(body));
 }
 
+std::unique_ptr<Stmt> Parser::returnStmt() {
+    Token keyword = previous();
+    std::unique_ptr<Expr> value;
+    if(match({TokenType::SEMICOLON, TokenType::NEWLINE, TokenType::RIGHT_BRACE})) {
+        value = nullptr;
+    } else {
+        value = expression();
+    }
+    return std::make_unique<ReturnStmt>(keyword, std::move(value));
+}
+
+std::unique_ptr<Stmt> Parser::breakStmt() {
+    return std::make_unique<BreakStmt>(previous());
+}
+
+std::unique_ptr<Stmt> Parser::continueStmt() {
+    return std::make_unique<ContinueStmt>(previous());
+}
+
 std::unique_ptr<Stmt> Parser::statement() {
     if(match({TokenType::IF})) return ifStmt();
     if(match({TokenType::WHILE})) return whileStmt();
