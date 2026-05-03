@@ -184,6 +184,39 @@ void printStmt(Stmt* stmt, ASTPrinter& printer, int indent = 0) {
         std::cout << tab << "  [corpo]\n";
         printStmt(forStmt->body.get(), printer, indent + 4);
         std::cout << tab << ")\n";
+    } else if (SwitchStmt* switchStmt = dynamic_cast<SwitchStmt*>(stmt)) {
+        std::cout << tab << "(escolha " << printer.print(switchStmt->target.get()) << "\n";
+        for (auto& c : switchStmt->cases) {
+            if (c.matchExpr) {
+                std::cout << tab << "  (caso " << printer.print(c.matchExpr.get()) << "\n";
+            } else {
+                std::cout << tab << "  (outrocaso\n";
+            }
+            
+            for (auto& s : c.body) {
+                printStmt(s.get(), printer, indent + 6);
+            }
+            std::cout << tab << "  )\n";
+        }
+        std::cout << tab << ")\n";
+    } else if (FunctionStmt* funcStmt = dynamic_cast<FunctionStmt*>(stmt)) {
+        std::string retType = "";
+        for (Token t : funcStmt->returnType) retType += t.lexeme;
+        
+        std::cout << tab << "(funcao " << retType << " " << funcStmt->name.lexeme << " (";
+        
+        for (size_t i = 0; i < funcStmt->params.size(); ++i) {
+            std::string pType = "";
+            for (Token t : funcStmt->params[i].type) pType += t.lexeme;
+            std::cout << (funcStmt->params[i].isReference ? "&" : "") << pType << " " << funcStmt->params[i].name.lexeme;
+            if (i < funcStmt->params.size() - 1) std::cout << ", ";
+        }
+        std::cout << ")\n";
+        
+        for (auto& s : funcStmt->body) {
+            printStmt(s.get(), printer, indent + 4);
+        }
+        std::cout << tab << ")\n";
     }
 }
 

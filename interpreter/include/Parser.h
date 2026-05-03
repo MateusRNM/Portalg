@@ -54,7 +54,7 @@ class Parser {
         std::unique_ptr<Stmt> forStmt();
         std::unique_ptr<Stmt> switchStmt();
         CaseClause caseClause();
-        std::unique_ptr<Stmt> defaultClause();
+        std::vector<std::unique_ptr<Stmt>> defaultClause();
         std::unique_ptr<Stmt> block();
         std::unique_ptr<Stmt> returnStmt();
         std::unique_ptr<Stmt> breakStmt();

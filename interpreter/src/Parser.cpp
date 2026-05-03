@@ -366,7 +366,7 @@ std::unique_ptr<Stmt> Parser::forStmt() {
 std::unique_ptr<Stmt> Parser::returnStmt() {
     Token keyword = previous();
     std::unique_ptr<Expr> value;
-    if(match({TokenType::SEMICOLON, TokenType::NEWLINE, TokenType::RIGHT_BRACE})) {
+    if(check(TokenType::RIGHT_BRACE) || match({TokenType::SEMICOLON, TokenType::NEWLINE})) {
         value = nullptr;
     } else {
         value = expression();
@@ -380,6 +380,45 @@ std::unique_ptr<Stmt> Parser::breakStmt() {
 
 std::unique_ptr<Stmt> Parser::continueStmt() {
     return std::make_unique<ContinueStmt>(previous());
+}
+
+CaseClause Parser::caseClause() {
+    std::unique_ptr<Expr> matchExpr = expression();
+    std::vector<std::unique_ptr<Stmt>> body;
+    consume(TokenType::COLON, "Esperado ':' após o caso.");
+    while(!isAtEnd() && !check(TokenType::CASE) && !check(TokenType::DEFAULT_CASE) && !check(TokenType:: RIGHT_BRACE)) {
+        while(match({TokenType::SEMICOLON, TokenType::NEWLINE}));
+        body.emplace_back(statement());
+    }
+    return CaseClause{std::move(matchExpr), std::move(body)};
+}
+
+std::vector<std::unique_ptr<Stmt>> Parser::defaultClause() {
+    std::vector<std::unique_ptr<Stmt>> body;
+    consume(TokenType::COLON, "Esperado ':' após o caso.");
+    while(!isAtEnd() && !check(TokenType:: RIGHT_BRACE)) {
+        while(match({TokenType::SEMICOLON, TokenType::NEWLINE}));
+        body.emplace_back(statement());
+    }
+    return body;
+}
+
+std::unique_ptr<Stmt> Parser::switchStmt() {
+    consume(TokenType::LEFT_PAREN, "Esperado '(' após o 'escolha'");
+    std::unique_ptr<Expr> target = expression();
+    consume(TokenType::RIGHT_PAREN, "Esperado ')' após o 'escolha'");
+    consume(TokenType::LEFT_BRACE, "Esperado '{' após o 'escolha'");
+    std::vector<CaseClause> cases;
+    while(match({TokenType::CASE})) {
+        cases.emplace_back(caseClause());
+    }
+
+    if(match({TokenType::DEFAULT_CASE})) {
+        cases.emplace_back(CaseClause{nullptr, std::move(defaultClause())});
+    }
+
+    consume(TokenType::RIGHT_BRACE, "Esperado '}' após o fim dos casos.");
+    return std::make_unique<SwitchStmt>(std::move(target), cases);
 }
 
 std::unique_ptr<Stmt> Parser::statement() {
