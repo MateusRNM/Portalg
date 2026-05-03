@@ -387,7 +387,7 @@ CaseClause Parser::caseClause() {
     std::vector<std::unique_ptr<Stmt>> body;
     consume(TokenType::COLON, "Esperado ':' após o caso.");
     while(!isAtEnd() && !check(TokenType::CASE) && !check(TokenType::DEFAULT_CASE) && !check(TokenType:: RIGHT_BRACE)) {
-        while(match({TokenType::SEMICOLON, TokenType::NEWLINE}));
+        if(match({TokenType::SEMICOLON, TokenType::NEWLINE})) continue;
         body.emplace_back(statement());
     }
     return CaseClause{std::move(matchExpr), std::move(body)};
@@ -397,7 +397,7 @@ std::vector<std::unique_ptr<Stmt>> Parser::defaultClause() {
     std::vector<std::unique_ptr<Stmt>> body;
     consume(TokenType::COLON, "Esperado ':' após o caso.");
     while(!isAtEnd() && !check(TokenType:: RIGHT_BRACE)) {
-        while(match({TokenType::SEMICOLON, TokenType::NEWLINE}));
+        if(match({TokenType::SEMICOLON, TokenType::NEWLINE})) continue;
         body.emplace_back(statement());
     }
     return body;
@@ -408,9 +408,12 @@ std::unique_ptr<Stmt> Parser::switchStmt() {
     std::unique_ptr<Expr> target = expression();
     consume(TokenType::RIGHT_PAREN, "Esperado ')' após o 'escolha'");
     consume(TokenType::LEFT_BRACE, "Esperado '{' após o 'escolha'");
+
+    while(match({TokenType::SEMICOLON, TokenType::NEWLINE})) continue;
+
     std::vector<CaseClause> cases;
     while(match({TokenType::CASE})) {
-        cases.emplace_back(caseClause());
+        cases.emplace_back(std::move(caseClause()));
     }
 
     if(match({TokenType::DEFAULT_CASE})) {
@@ -418,7 +421,7 @@ std::unique_ptr<Stmt> Parser::switchStmt() {
     }
 
     consume(TokenType::RIGHT_BRACE, "Esperado '}' após o fim dos casos.");
-    return std::make_unique<SwitchStmt>(std::move(target), cases);
+    return std::make_unique<SwitchStmt>(std::move(target), std::move(cases));
 }
 
 std::unique_ptr<Stmt> Parser::statement() {
@@ -521,6 +524,37 @@ std::vector<std::unique_ptr<Stmt>> Parser::varDecl(std::vector<Token> declType, 
     }
 
     return declarations;
+}
+
+std::vector<FunctionParam> Parser::parameters() {
+    std::vector<FunctionParam> params;
+    if(!check(TokenType::RIGHT_PAREN)) {
+        do {
+            std::vector<Token> paramType = type();
+            bool isReference = match({TokenType::AMPERSAND});
+            Token paramName = consume(TokenType::IDENTIFIER, "Esperado nome do parâmetro.");
+            params.push_back({paramType, paramName, isReference});
+        } while(match({TokenType::COMMA}));
+    }
+    return params;
+}
+
+std::unique_ptr<Stmt> Parser::funcDecl(std::vector<Token> declType, Token name) {
+    consume(TokenType::LEFT_PAREN, "Esperado '(' após o nome da função.");
+    std::vector<FunctionParam> params = parameters();
+    consume(TokenType::RIGHT_PAREN, "Esperado ')' após os parâmetros da função.");
+
+    consume(TokenType::LEFT_BRACE, "Esperado '{' antes do corpo da função.");
+    std::vector<std::unique_ptr<Stmt>> body;
+    while(!isAtEnd() && !check(TokenType::RIGHT_BRACE)) {
+        if(match({TokenType::NEWLINE, TokenType::SEMICOLON})) continue;
+        for(auto& st : declaration()) {
+            body.emplace_back(std::move(st));
+        }
+    }
+
+    consume(TokenType::RIGHT_BRACE, "Esperado '}' no final do corpo da função.");
+    return std::make_unique<FunctionStmt>(declType, name, std::move(params), std::move(body));
 }
 
 std::vector<std::unique_ptr<Stmt>> Parser::declaration() {
