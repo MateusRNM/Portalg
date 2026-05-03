@@ -106,11 +106,12 @@ public:
 
 class TernaryExpr : public Expr {
 public:
+    Token query;
     std::unique_ptr<Expr> condition;
     std::unique_ptr<Expr> trueExpr;
     std::unique_ptr<Expr> falseExpr;
-    TernaryExpr(std::unique_ptr<Expr> cond, std::unique_ptr<Expr> t, std::unique_ptr<Expr> f) 
-        : condition(std::move(cond)), trueExpr(std::move(t)), falseExpr(std::move(f)) {}
+    TernaryExpr(std::unique_ptr<Expr> cond, std::unique_ptr<Expr> t, std::unique_ptr<Expr> f, Token query) 
+        : condition(std::move(cond)), trueExpr(std::move(t)), falseExpr(std::move(f)), query(query) {}
     std::any accept(ExprVisitor* visitor) override { return visitor->visitTernaryExpr(this); }
 };
 

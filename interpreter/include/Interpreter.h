@@ -116,7 +116,7 @@ public:
                 return getAsDouble(left) / getAsDouble(right);
 
             case TokenType::PLUS:
-                if(left.type() == typeid(std::string) || right.type() == typeid(std::string)) {
+                if(left.type() == typeid(std::string) || left.type() == typeid(char) || right.type() == typeid(std::string) || right.type() == typeid(char)) {
                     return stringify(left) + stringify(right);
                 }
                 
@@ -146,7 +146,7 @@ public:
             
             case TokenType::POTENCY:
                 if((!isReal(left) && !isInteger(left)) || (!isReal(right) && !isInteger(right))) {
-                    throw RuntimeError(expr->op, "Tentativa de resto da divisão com valores não numéricos.");
+                    throw RuntimeError(expr->op, "Tentativa de exponenciação com valores não numéricos.");
                 }
 
                 double base = getAsDouble(left);
@@ -250,5 +250,44 @@ public:
             // Implementar incremento em índices de vetores 
         }
         throw RuntimeError(expr->op, "Alvo inválido para incremento/decremento.");
+    }
+
+    std::any visitVariableExpr(VariableExpr* expr) override {
+        return environment->get(expr->name);
+    }
+
+    std::any visitLogicalExpr(LogicalExpr* expr) override {
+        std::any left = evaluate(expr->left.get());
+        if(left.type() != typeid(bool)) {
+            throw RuntimeError(expr->op, "Tentativa de usar operador lógico com valores não lógicos.");
+        }
+
+        bool leftVal = std::any_cast<bool>(left);
+
+        if(expr->op.type == TokenType::OR) {
+            if(leftVal) return true;
+        } else {
+            if(!leftVal) return false;
+        }
+
+        std::any right = evaluate(expr->right.get());
+        if(right.type() != typeid(bool)) {
+            throw RuntimeError(expr->op, "Tentativa de usar operador lógico com valores não lógicos.");
+        }
+
+        return std::any_cast<bool>(right);
+    }
+
+    std::any visitTernaryExpr(TernaryExpr* expr) override {
+        std::any condition = evaluate(expr->condition.get());
+        if(condition.type() != typeid(bool)) {
+            throw RuntimeError(expr->query, "A condição do operador ternário deve ser um valor lógico.");
+        }
+
+        if(std::any_cast<bool>(condition)) {
+            return evaluate(expr->trueExpr.get());
+        } else {
+            return evaluate(expr->falseExpr.get());
+        }
     }
 };

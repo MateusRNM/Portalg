@@ -253,10 +253,11 @@ std::unique_ptr<Expr> Parser::logic_or() {
 std::unique_ptr<Expr> Parser::ternary() {
     std::unique_ptr<Expr> expr = logic_or();
     if(match({TokenType::QUERY})) {
+        Token query = previous();
         std::unique_ptr<Expr> midExpr = expression();
         consume(TokenType::COLON, "Dois pontos esperado no operador ternário.");
         std::unique_ptr<Expr> rightExpr = ternary();
-        return std::make_unique<TernaryExpr>(std::move(expr), std::move(midExpr), std::move(rightExpr));
+        return std::make_unique<TernaryExpr>(std::move(expr), std::move(midExpr), std::move(rightExpr), query);
     }
     return expr;
 }
