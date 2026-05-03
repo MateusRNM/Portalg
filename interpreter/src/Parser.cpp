@@ -288,12 +288,79 @@ std::unique_ptr<Stmt> Parser::exprStmt() {
 std::unique_ptr<Stmt> Parser::block() {
     std::vector<std::unique_ptr<Stmt>> statements;
     while(!isAtEnd() && !check(TokenType::RIGHT_BRACE)) {
+        if(match({TokenType::NEWLINE, TokenType::SEMICOLON})) continue;
+
         for(auto& st : declaration()) {
             statements.emplace_back(std::move(st));
         }
     }
     consume(TokenType::RIGHT_BRACE, "Esperado chave de fechamento '}'");
     return std::make_unique<BlockStmt>(std::move(statements));
+}
+
+std::unique_ptr<Stmt> Parser::ifStmt() {
+    consume(TokenType::LEFT_PAREN, "Esperado '(' após o 'se'");
+    std::unique_ptr<Expr> condition = expression();
+    consume(TokenType::RIGHT_PAREN, "Esperado ')' após a condição do 'se'");
+
+    consume(TokenType::LEFT_BRACE, "Esperado '{' após o 'se'");
+    std::unique_ptr<Stmt> thenBranch = block();
+
+    std::unique_ptr<Stmt> elseBranch = nullptr;
+    if(match({TokenType::ELSE})) {
+        if(match({TokenType::IF})) {
+            elseBranch = ifStmt();
+        } else {
+            consume(TokenType::LEFT_BRACE, "Esperado '{' após o 'senao'");
+            elseBranch = block();
+        }
+    }
+    return std::make_unique<IfStmt>(std::move(condition), std::move(thenBranch), std::move(elseBranch));
+}
+
+std::unique_ptr<Stmt> Parser::whileStmt() {
+    consume(TokenType::LEFT_PAREN, "Esperado '(' após o 'enquanto'");
+    std::unique_ptr<Expr> condition = expression();
+    consume(TokenType::RIGHT_PAREN, "Esperado ')' após a condição do 'enquanto'");
+
+    consume(TokenType::LEFT_BRACE, "Esperado '{' após o 'enquanto'");
+    std::unique_ptr<Stmt> body = block();
+    return std::make_unique<WhileStmt>(std::move(condition), std::move(body));
+}
+
+std::unique_ptr<Stmt> Parser::forStmt() {
+    consume(TokenType::LEFT_PAREN, "Esperado '(' após o 'para'");
+    
+    std::unique_ptr<Stmt> initializer;
+    if(match({TokenType::SEMICOLON})) {
+        initializer = nullptr;
+    } else if(check(TokenType::KW_CHAR) || check(TokenType::KW_INTEGER) || check(TokenType::KW_LOGIC) || check(TokenType::KW_REAL) || check(TokenType::KW_TEXT) || check(TokenType::KW_VECTOR)) {
+        std::vector<Token> declType = type();
+        Token name = consume(TokenType::IDENTIFIER, "Nome da variável esperado.");
+        std::vector<std::unique_ptr<Stmt>> declarations = varDecl(declType, name);
+        initializer = std::make_unique<BlockStmt>(std::move(declarations));
+        consume(TokenType::SEMICOLON, "Esperado ';' após a inicialização do 'para'");
+    } else {
+        initializer = exprStmt();
+        consume(TokenType::SEMICOLON, "Esperado ';' após a inicialização do 'para'");
+    }
+
+    std::unique_ptr<Expr> condition = nullptr;
+    if(!check(TokenType::SEMICOLON)) {
+        condition = expression();
+    }
+    consume(TokenType::SEMICOLON, "Esperado ';' após a condição do 'para'");
+
+    std::unique_ptr<Expr> increment = nullptr;
+    if(!check(TokenType::RIGHT_PAREN)) {
+        increment = expression();
+    }
+    consume(TokenType::RIGHT_PAREN, "Esperado ')' após o 'para'");
+
+    consume(TokenType::LEFT_BRACE, "Esperado '{' após o 'para'");
+    std::unique_ptr<Stmt> body = block();
+
+    return std::make_unique<ForStmt>(std::move(initializer), std::move(condition), std::move(increment), std::move(body));
 }
 
 std::unique_ptr<Stmt> Parser::statement() {

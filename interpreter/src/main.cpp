@@ -136,6 +136,57 @@ std::string tokenTypeToString(TokenType type) {
     }
 }
 
+void printStmt(Stmt* stmt, ASTPrinter& printer, int indent = 0) {
+    if (stmt == nullptr) return;
+    
+    std::string tab(indent, ' '); 
+
+    if (ExpressionStmt* exprStmt = dynamic_cast<ExpressionStmt*>(stmt)) {
+        std::cout << tab << printer.print(exprStmt->expression.get()) << '\n';
+    } else if (VarDeclStmt* varDecl = dynamic_cast<VarDeclStmt*>(stmt)) {
+        std::string tipoDecl = varDecl->isConst ? "(constante " : "(variavel ";
+        std::string nomeTipo = "";
+        for(Token t : varDecl->type) nomeTipo += t.lexeme;
+        
+        std::cout << tab << tipoDecl << nomeTipo << " " << varDecl->name.lexeme;
+        if (varDecl->initializer) {
+            std::cout << " " << printer.print(varDecl->initializer.get());
+        }
+        std::cout << ")\n";
+    } else if (BlockStmt* blockStmt = dynamic_cast<BlockStmt*>(stmt)) {
+        std::cout << tab << "(bloco\n";
+        for (auto& s : blockStmt->statements) {
+            printStmt(s.get(), printer, indent + 4);
+        }
+        std::cout << tab << ")\n";
+    } else if (IfStmt* ifStmt = dynamic_cast<IfStmt*>(stmt)) {
+        std::cout << tab << "(se " << printer.print(ifStmt->condition.get()) << "\n";
+        
+        printStmt(ifStmt->thenBranch.get(), printer, indent + 4);
+        
+        if (ifStmt->elseBranch) {
+            std::cout << tab << "(senao\n";
+            printStmt(ifStmt->elseBranch.get(), printer, indent + 4);
+            std::cout << tab << ")\n";
+        }
+        std::cout << tab << ")\n";
+    } else if (WhileStmt* whileStmt = dynamic_cast<WhileStmt*>(stmt)) {
+        std::cout << tab << "(enquanto " << printer.print(whileStmt->condition.get()) << "\n";
+        printStmt(whileStmt->body.get(), printer, indent + 4);
+        std::cout << tab << ")\n";
+    } else if (ForStmt* forStmt = dynamic_cast<ForStmt*>(stmt)) {
+        std::cout << tab << "(para\n";
+        std::cout << tab << "  [inicializador]\n";
+        if (forStmt->initializer) printStmt(forStmt->initializer.get(), printer, indent + 4);
+        
+        std::cout << tab << "  [condicao] " << (forStmt->condition ? printer.print(forStmt->condition.get()) : "vazio") << "\n";
+        std::cout << tab << "  [incremento] " << (forStmt->increment ? printer.print(forStmt->increment.get()) : "vazio") << "\n";
+        std::cout << tab << "  [corpo]\n";
+        printStmt(forStmt->body.get(), printer, indent + 4);
+        std::cout << tab << ")\n";
+    }
+}
+
 void run(const std::string& source) {
     ErrorHandler errorHandler;
     Scanner scanner(source, errorHandler);
@@ -159,24 +210,7 @@ void run(const std::string& source) {
     ASTPrinter printer;
 
     for(auto& node : ast) {
-        if(ExpressionStmt* expr = dynamic_cast<ExpressionStmt*>(node.get())) {
-            std::cout << printer.print(expr->expression.get()) << '\n';
-        } 
-
-        else if(VarDeclStmt* varDecl = dynamic_cast<VarDeclStmt*>(node.get())) {
-            std::string tipoDecl = varDecl->isConst ? "(constante " : "(variavel ";
-            
-            std::string nomeTipo = "";
-            for(Token t : varDecl->type) nomeTipo += t.lexeme;
-            
-            std::cout << tipoDecl << nomeTipo << " " << varDecl->name.lexeme;
-            
-            if (varDecl->initializer) {
-                std::cout << " " << printer.print(varDecl->initializer.get());
-            }
-            
-            std::cout << ")\n";
-        }
+        printStmt(node.get(), printer);
     }
 }
 
