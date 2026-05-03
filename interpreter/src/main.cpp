@@ -8,6 +8,7 @@
 #include "Parser.h"
 #include "ErrorHandler.h"
 #include "Token.h"
+#include "Interpreter.h"
 
 class ASTPrinter : public ExprVisitor {
 public:
@@ -240,11 +241,14 @@ void run(const std::string& source) {
         return;
     }
 
-    ASTPrinter printer;
+    // ASTPrinter printer;
 
-    for(auto& node : ast) {
-        printStmt(node.get(), printer);
-    }
+    // for(auto& node : ast) {
+    //     printStmt(node.get(), printer);
+    // }
+
+    Interpreter interpreter;
+    interpreter.interpret(ast);
 }
 
 void runFile(const char* path) {

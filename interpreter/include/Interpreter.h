@@ -7,8 +7,9 @@
 #include <stdexcept>
 #include <typeinfo>
 #include <cmath>
+#include <iostream>
 
-class Interpreter : public ExprVisitor {
+class Interpreter : public ExprVisitor, public StmtVisitor {
 private:
     std::shared_ptr<Environment> environment = std::make_shared<Environment>();
 
@@ -28,6 +29,21 @@ private:
         if(isReal(operand)) return std::any_cast<double>(operand);
         if(isInteger(operand)) return (double)std::any_cast<long long>(operand);
         throw std::runtime_error("Falha: valor não é numérico.");
+    }
+
+    bool isEqual(const std::any& a, const std::any& b) {
+        if(a.type() == b.type()) {
+            if(a.type() == typeid(std::string)) return std::any_cast<std::string>(a) == std::any_cast<std::string>(b);
+            if(a.type() == typeid(bool)) return std::any_cast<bool>(a) == std::any_cast<bool>(b);
+            if(isInteger(a)) return std::any_cast<long long>(a) == std::any_cast<long long>(b);
+            if(isReal(a)) return std::any_cast<double>(a) == std::any_cast<double>(b);
+        }
+        
+        if((isInteger(a) || isReal(a)) && (isInteger(b) || isReal(b))) {
+            return getAsDouble(a) == getAsDouble(b);
+        }
+
+        return false;
     }
 
     std::string stringify(const std::any& operand) {
@@ -57,22 +73,21 @@ private:
         return "Impossível converter para texto.";
     }
 
-    bool isEqual(const std::any& a, const std::any& b) {
-        if(a.type() == b.type()) {
-            if(a.type() == typeid(std::string)) return std::any_cast<std::string>(a) == std::any_cast<std::string>(b);
-            if(a.type() == typeid(bool)) return std::any_cast<bool>(a) == std::any_cast<bool>(b);
-            if(isInteger(a)) return std::any_cast<long long>(a) == std::any_cast<long long>(b);
-            if(isReal(a)) return std::any_cast<double>(a) == std::any_cast<double>(b);
+public:
+    void interpret(const std::vector<std::unique_ptr<Stmt>>& statements) {
+        try {
+            for (const auto& statement : statements) {
+                execute(statement.get());
+            }
+        } catch (const RuntimeError& error) {
+            std::cerr << "Erro de Execução (Linha " << error.token.line << "): " << error.what() << "\n";
         }
-        
-        if((isInteger(a) || isReal(a)) && (isInteger(b) || isReal(b))) {
-            return getAsDouble(a) == getAsDouble(b);
-        }
-
-        return false;
     }
 
-public:
+    void execute(Stmt* stmt) {
+        stmt->accept(this);
+    }
+
     std::any visitLiteralExpr(LiteralExpr* expr) override {
         return expr->value;
     }
@@ -144,7 +159,7 @@ public:
 
                 return std::fmod(getAsDouble(left), getAsDouble(right));
             
-            case TokenType::POTENCY:
+            case TokenType::POTENCY: {
                 if((!isReal(left) && !isInteger(left)) || (!isReal(right) && !isInteger(right))) {
                     throw RuntimeError(expr->op, "Tentativa de exponenciação com valores não numéricos.");
                 }
@@ -157,6 +172,7 @@ public:
                 }
 
                 return std::pow(base, exponent);
+            }
 
             case TokenType::EQUAL_EQUAL:
                 return isEqual(left, right);
@@ -289,5 +305,121 @@ public:
         } else {
             return evaluate(expr->falseExpr.get());
         }
+    }
+
+    void visitExpressionStmt(ExpressionStmt* stmt) override {
+        evaluate(stmt->expression.get());
+    }
+
+    void visitVarDeclStmt(VarDeclStmt* stmt) override {
+        std::any value = evaluate(stmt->initializer.get());
+
+        if(value.type() == typeid(std::string) && stmt->type.size() == 1) {
+            std::string textValue = std::any_cast<std::string>(value);
+            try {
+                if (stmt->type[0].type == TokenType::KW_INTEGER) {
+                    value = std::stoll(textValue);
+                } else if (stmt->type[0].type == TokenType::KW_REAL) {
+                    value = std::stod(textValue);
+                }
+            } catch (const std::exception& e) {
+                throw RuntimeError(stmt->name, "Não foi possível converter o texto '" + textValue + "' para um número válido.");
+            }
+        }
+
+        if(stmt->type.size() == 1 && stmt->type[0].type == TokenType::KW_INTEGER) {
+            if(isReal(value)) {
+                value = (long long)std::any_cast<double>(value);
+            }
+        }
+
+        environment->define(stmt->name.lexeme, std::move(value), stmt->isConst, stmt->type);
+    }
+
+    std::any visitAssignExpr(AssignExpr* expr) override {
+        std::any value = evaluate(expr->value.get());
+        std::vector<Token> varType = environment->getType(expr->name);
+
+        if(value.type() == typeid(std::string) && varType.size() == 1) {
+            std::string textValue = std::any_cast<std::string>(value);
+            try {
+                if(varType[0].type == TokenType::KW_INTEGER) {
+                    value = std::stoll(textValue);
+                } else if(varType[0].type == TokenType::KW_REAL) {
+                    value = std::stod(textValue);
+                }
+            } catch (const std::exception& e) {
+                throw RuntimeError(expr->name, "Não foi possível converter o texto '" + textValue + "' para um número válido.");
+            }
+        }
+
+        if(varType.size() == 1 && varType[0].type == TokenType::KW_INTEGER) {
+            if (isReal(value)) {
+                value = (long long)std::any_cast<double>(value);
+            }
+        }
+
+        environment->assign(expr->name, value);
+        return value;
+    }
+
+    std::any visitCallExpr(CallExpr* expr) override {
+        throw std::runtime_error("visitCallExpr não implementado ainda.");
+    }
+
+    std::any visitMethodCallExpr(MethodCallExpr* expr) override {
+        throw std::runtime_error("visitMethodCallExpr não implementado ainda.");
+    }
+
+    std::any visitIndexAccessExpr(IndexAccessExpr* expr) override {
+        throw std::runtime_error("visitIndexAccessExpr não implementado ainda.");
+    }
+
+    std::any visitIndexAssignExpr(IndexAssignExpr* expr) override {
+        throw std::runtime_error("visitIndexAssignExpr não implementado ainda.");
+    }
+
+    std::any visitArrayLiteralExpr(ArrayLiteralExpr* expr) override {
+        throw std::runtime_error("visitArrayLiteralExpr não implementado ainda.");
+    }
+
+    std::any visitInstantiateExpr(InstantiateExpr* expr) override {
+        throw std::runtime_error("visitInstantiateExpr não implementado ainda.");
+    }
+
+    void visitBlockStmt(BlockStmt* stmt) override {
+        throw std::runtime_error("visitBlockStmt não implementado ainda.");
+    }
+
+    void visitIfStmt(IfStmt* stmt) override {
+        throw std::runtime_error("visitIfStmt não implementado ainda.");
+    }
+
+    void visitWhileStmt(WhileStmt* stmt) override {
+        throw std::runtime_error("visitWhileStmt não implementado ainda.");
+    }
+
+    void visitForStmt(ForStmt* stmt) override {
+        throw std::runtime_error("visitForStmt não implementado ainda.");
+    }
+
+    void visitBreakStmt(BreakStmt* stmt) override {
+        throw std::runtime_error("visitBreakStmt não implementado ainda.");
+    }
+
+    void visitContinueStmt(ContinueStmt* stmt) override {
+        throw std::runtime_error("visitContinueStmt não implementado ainda.");
+    }
+
+    void visitReturnStmt(ReturnStmt* stmt) override {
+        throw std::runtime_error("visitReturnStmt não implementado ainda.");
+    }
+
+    void visitFunctionStmt(FunctionStmt* stmt) override {
+        throw std::runtime_error("visitFunctionStmt não implementado ainda.");
+    }
+
+    void visitSwitchStmt(SwitchStmt* stmt) override {
+        throw std::runtime_error("visitSwitchStmt não implementado ainda.");
     }
 };
