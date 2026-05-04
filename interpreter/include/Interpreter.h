@@ -9,6 +9,15 @@
 #include <cmath>
 #include <iostream>
 
+class Interpreter;
+
+class PortalgCallable {
+    public:
+        virtual ~PortalgCallable() = default;
+        virtual int arity() = 0;
+        virtual std::any call(Interpreter* interpreter, const std::vector<std::any>& arguments) = 0;
+};
+
 class Interpreter : public ExprVisitor, public StmtVisitor {
 private:
     std::shared_ptr<Environment> environment = std::make_shared<Environment>();
@@ -46,6 +55,59 @@ private:
         return false;
     }
 
+
+public:
+    Interpreter() {
+
+        struct NativeEscreva : public PortalgCallable {
+            int arity() override { return -1; }
+            std::any call(Interpreter* interpreter, const std::vector<std::any>& arguments) override {
+                for(const auto& arg: arguments) {
+                    std::cout << interpreter->stringify(arg);
+                }
+                return {};
+            }
+        };
+
+        struct NativeEscreval : public PortalgCallable {
+            int arity() override { return -1; }
+            std::any call(Interpreter* interpreter, const std::vector<std::any>& arguments) override {
+                for(const auto& arg: arguments) {
+                    std::cout << interpreter->stringify(arg);
+                }
+                std::cout << '\n';
+                return {};
+            }
+        };
+
+        struct NativeLeia : public PortalgCallable {
+            int arity() override { return 0; }
+            std::any call(Interpreter* interpreter, const std::vector<std::any>& arguments) override {
+                std::string input;
+                std::getline(std::cin, input);
+                return input;
+            }
+        };
+
+        environment->define("escreva", std::make_shared<PortalgCallable*>(new NativeEscreva()), true, {});
+        environment->define("escreval", std::make_shared<PortalgCallable*>(new NativeEscreval()), true, {});
+        environment->define("leia", std::make_shared<PortalgCallable*>(new NativeLeia()), true, {});
+    }
+
+    void interpret(const std::vector<std::unique_ptr<Stmt>>& statements) {
+        try {
+            for (const auto& statement : statements) {
+                execute(statement.get());
+            }
+        } catch (const RuntimeError& error) {
+            std::cerr << "Erro de Execução (Linha " << error.token.line << "): " << error.what() << "\n";
+        }
+    }
+
+    void execute(Stmt* stmt) {
+        stmt->accept(this);
+    }
+
     std::string stringify(const std::any& operand) {
         if(operand.type() == typeid(std::string)) {
             return std::any_cast<std::string>(operand);
@@ -71,21 +133,6 @@ private:
         }
 
         return "Impossível converter para texto.";
-    }
-
-public:
-    void interpret(const std::vector<std::unique_ptr<Stmt>>& statements) {
-        try {
-            for (const auto& statement : statements) {
-                execute(statement.get());
-            }
-        } catch (const RuntimeError& error) {
-            std::cerr << "Erro de Execução (Linha " << error.token.line << "): " << error.what() << "\n";
-        }
-    }
-
-    void execute(Stmt* stmt) {
-        stmt->accept(this);
     }
 
     std::any visitLiteralExpr(LiteralExpr* expr) override {
@@ -364,7 +411,24 @@ public:
     }
 
     std::any visitCallExpr(CallExpr* expr) override {
-        throw std::runtime_error("visitCallExpr não implementado ainda.");
+        std::any callee = evaluate(expr->callee.get());
+
+        std::vector<std::any> arguments;
+        for(const auto& argExpr : expr->arguments) {
+            arguments.emplace_back(evaluate(argExpr.get()));
+        }
+
+        if(callee.type() != typeid(std::shared_ptr<PortalgCallable*>)) {
+            throw RuntimeError(expr->openToken, "Só é permitido chamar funções e métodos.");
+        }
+
+        PortalgCallable* function = *std::any_cast<std::shared_ptr<PortalgCallable*>>(callee);
+
+        if(function->arity() != -1 && arguments.size() != function->arity()) {
+            throw RuntimeError(expr->openToken, "A função esperava " + std::to_string(function->arity()) + " argumentos, mas recebeu " + std::to_string(arguments.size()) + ".");
+        }
+
+        return function->call(this, arguments);
     }
 
     std::any visitMethodCallExpr(MethodCallExpr* expr) override {

@@ -117,10 +117,11 @@ public:
 
 class CallExpr : public Expr {
 public:
+    Token openToken;
     std::unique_ptr<Expr> callee;
     std::vector<std::unique_ptr<Expr>> arguments;
-    CallExpr(std::unique_ptr<Expr> callee, std::vector<std::unique_ptr<Expr>> arguments)
-        : callee(std::move(callee)), arguments(std::move(arguments)) {}
+    CallExpr(std::unique_ptr<Expr> callee, std::vector<std::unique_ptr<Expr>> arguments, Token openToken)
+        : callee(std::move(callee)), arguments(std::move(arguments)), openToken(openToken) {}
     std::any accept(ExprVisitor* visitor) override { return visitor->visitCallExpr(this); }
 };
 

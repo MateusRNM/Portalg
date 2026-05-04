@@ -124,6 +124,7 @@ std::unique_ptr<Expr> Parser::call() {
             consume(TokenType::RIGHT_BRACKET, "Esperado ']' após o índice.");
             expr = std::make_unique<IndexAccessExpr>(std::move(expr), std::move(index));
         } else if(match({TokenType::LEFT_PAREN})) {
+            Token openToken = previous();
             std::vector<std::unique_ptr<Expr>> args;
             if(!check(TokenType::RIGHT_PAREN)) {
                 args.emplace_back(std::move(expression()));
@@ -132,7 +133,7 @@ std::unique_ptr<Expr> Parser::call() {
                 }
             }
             consume(TokenType::RIGHT_PAREN, "Esperado ) para fechar a chamada de função.");
-            expr = std::make_unique<CallExpr>(std::move(expr), std::move(args));
+            expr = std::make_unique<CallExpr>(std::move(expr), std::move(args), openToken);
         } else if(match({TokenType::DOT})) {
             Token name = consume(TokenType::IDENTIFIER, "Esperado o identificador do método após o '.'");
             consume(TokenType::LEFT_PAREN, "Esperado ( para abrir a chamada de função.");
