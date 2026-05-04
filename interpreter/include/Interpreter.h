@@ -89,9 +89,9 @@ public:
             }
         };
 
-        environment->define("escreva", std::make_shared<PortalgCallable*>(new NativeEscreva()), true, {});
-        environment->define("escreval", std::make_shared<PortalgCallable*>(new NativeEscreval()), true, {});
-        environment->define("leia", std::make_shared<PortalgCallable*>(new NativeLeia()), true, {});
+        environment->define("escreva", std::make_shared<PortalgCallable>(new NativeEscreva()), true, {});
+        environment->define("escreval", std::make_shared<PortalgCallable>(new NativeEscreval()), true, {});
+        environment->define("leia", std::make_shared<PortalgCallable>(new NativeLeia()), true, {});
     }
 
     void interpret(const std::vector<std::unique_ptr<Stmt>>& statements) {
@@ -418,11 +418,11 @@ public:
             arguments.emplace_back(evaluate(argExpr.get()));
         }
 
-        if(callee.type() != typeid(std::shared_ptr<PortalgCallable*>)) {
+        if(callee.type() != typeid(std::shared_ptr<PortalgCallable>)) {
             throw RuntimeError(expr->openToken, "Só é permitido chamar funções e métodos.");
         }
 
-        PortalgCallable* function = *std::any_cast<std::shared_ptr<PortalgCallable*>>(callee);
+        std::shared_ptr<PortalgCallable> function = std::any_cast<std::shared_ptr<PortalgCallable>>(callee);
 
         if(function->arity() != -1 && arguments.size() != function->arity()) {
             throw RuntimeError(expr->openToken, "A função esperava " + std::to_string(function->arity()) + " argumentos, mas recebeu " + std::to_string(arguments.size()) + ".");
@@ -479,7 +479,7 @@ public:
 
         if(std::any_cast<bool>(conditionResult)) {
             execute(stmt->thenBranch.get());
-        } else {
+        } else if(stmt->elseBranch != nullptr) {
             execute(stmt->elseBranch.get());
         }
     }
