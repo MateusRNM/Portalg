@@ -301,6 +301,7 @@ std::unique_ptr<Stmt> Parser::block() {
 }
 
 std::unique_ptr<Stmt> Parser::ifStmt() {
+    Token ifToken = previous();
     consume(TokenType::LEFT_PAREN, "Esperado '(' após o 'se'");
     std::unique_ptr<Expr> condition = expression();
     consume(TokenType::RIGHT_PAREN, "Esperado ')' após a condição do 'se'");
@@ -317,7 +318,7 @@ std::unique_ptr<Stmt> Parser::ifStmt() {
             elseBranch = block();
         }
     }
-    return std::make_unique<IfStmt>(std::move(condition), std::move(thenBranch), std::move(elseBranch));
+    return std::make_unique<IfStmt>(std::move(condition), std::move(thenBranch), std::move(elseBranch), ifToken);
 }
 
 std::unique_ptr<Stmt> Parser::whileStmt() {

@@ -451,12 +451,37 @@ public:
         throw std::runtime_error("visitInstantiateExpr não implementado ainda.");
     }
 
+    void executeBlock(const std::vector<std::unique_ptr<Stmt>>& statements, std::shared_ptr<Environment> innerEnvironment) {
+        std::shared_ptr<Environment> previousEnv = this->environment;
+        try {
+            this->environment = innerEnvironment;
+
+            for(const auto& st : statements) {
+                execute(st.get());
+            }
+
+            this->environment = previousEnv;
+        } catch(...) {
+            this->environment = previousEnv;
+            throw;
+        }
+    }
+
     void visitBlockStmt(BlockStmt* stmt) override {
-        throw std::runtime_error("visitBlockStmt não implementado ainda.");
+        executeBlock(stmt->statements, std::make_shared<Environment>(this->environment));
     }
 
     void visitIfStmt(IfStmt* stmt) override {
-        throw std::runtime_error("visitIfStmt não implementado ainda.");
+        std::any conditionResult = evaluate(stmt->condition.get());
+        if(conditionResult.type() != typeid(bool)) {
+            throw RuntimeError(stmt->ifToken, "A condição do 'se' deve retornar um valor lógico.");
+        }
+
+        if(std::any_cast<bool>(conditionResult)) {
+            execute(stmt->thenBranch.get());
+        } else {
+            execute(stmt->elseBranch.get());
+        }
     }
 
     void visitWhileStmt(WhileStmt* stmt) override {

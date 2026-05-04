@@ -62,11 +62,12 @@ public:
 
 class IfStmt : public Stmt {
 public:
+    Token ifToken;
     std::unique_ptr<Expr> condition;
     std::unique_ptr<Stmt> thenBranch;
     std::unique_ptr<Stmt> elseBranch;
-    IfStmt(std::unique_ptr<Expr> condition, std::unique_ptr<Stmt> thenBranch, std::unique_ptr<Stmt> elseBranch) 
-        : condition(std::move(condition)), thenBranch(std::move(thenBranch)), elseBranch(std::move(elseBranch)) {}
+    IfStmt(std::unique_ptr<Expr> condition, std::unique_ptr<Stmt> thenBranch, std::unique_ptr<Stmt> elseBranch, Token ifToken) 
+        : condition(std::move(condition)), thenBranch(std::move(thenBranch)), elseBranch(std::move(elseBranch)), ifToken(ifToken) {}
     void accept(StmtVisitor* visitor) override { visitor->visitIfStmt(this); }
 };
 
