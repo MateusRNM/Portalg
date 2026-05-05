@@ -19,8 +19,8 @@ class PortalgCallable {
 };
 
 struct TypedArray {
-    std::vector<Token> typeTokens;
-    std::vector<std::any> elements;
+    std::shared_ptr<std::vector<Token>> typeTokens;
+    std::shared_ptr<std::vector<std::any>> elements;
 };
 
 class Interpreter : public ExprVisitor, public StmtVisitor {
@@ -63,7 +63,7 @@ private:
         return false;
     }
 
-    std::any calculateMathAndRelationals(std::any left, Token op, std::any right) {
+    std::any calculateMathAndRelationals(const std::any& left, Token op, const std::any& right) {
         switch(op.type) {
             case TokenType::MINUS:
             case TokenType::MINUS_EQUAL:
@@ -207,7 +207,7 @@ private:
                 
                 TypedArray typedArray = std::any_cast<TypedArray>(value);
 
-                if(!typedArray.typeTokens.empty()) {
+                if(!typedArray.typeTokens->empty()) {
                     std::vector<Token> expectedFullType;
                     expectedFullType.push_back({TokenType::KW_VECTOR, "vetor", 0});
                     expectedFullType.push_back({TokenType::LESS, "<", 0});
@@ -221,16 +221,16 @@ private:
                         tempIdx++;
                     }
 
-                    if(expectedFullType.size() != typedArray.typeTokens.size()) return false;
+                    if(expectedFullType.size() != typedArray.typeTokens->size()) return false;
                     for(size_t i = 0; i < expectedFullType.size(); i++) {
-                        if(expectedFullType[i].type != typedArray.typeTokens[i].type) return false;
+                        if(expectedFullType[i].type != (*typedArray.typeTokens)[i].type) return false;
                     }
                     
                     index = tempIdx;
                     return true;
                 }
 
-                std::vector<std::any>& vec = typedArray.elements;
+                std::vector<std::any>& vec = *(typedArray.elements);
                 
                 if(vec.empty()) {
                     int openBrackets = 1;
@@ -405,7 +405,7 @@ public:
 
         if(operand.type() == typeid(TypedArray)) {
             std::string result = "[";
-            const auto elements = std::any_cast<TypedArray>(operand).elements;
+            const auto& elements = *(std::any_cast<TypedArray>(operand).elements);
             for(size_t i = 0; i < elements.size(); i++) {
                 result += stringify(elements[i]);
                 if(i < elements.size()-1) {
@@ -494,18 +494,17 @@ public:
                 
                 if(currentAny->type() == typeid(TypedArray)) {
                     TypedArray* arrayPtr = std::any_cast<TypedArray>(currentAny);
-                    if(idx < 0 || idx >= arrayPtr->elements.size()) throw RuntimeError(expr->op, "Índice do vetor fora dos limites.");
+                    if(idx < 0 || idx >= arrayPtr->elements->size()) throw RuntimeError(expr->op, "Índice do vetor fora dos limites.");
                     
                     if(i == indexes.size() - 1) {
-                        std::any& finalElement = arrayPtr->elements[idx];
+                        std::any& finalElement = (*arrayPtr->elements)[idx];
                         std::any currentValue = finalElement;
                         std::any newValue = applyIncrementDecrement(currentValue, expr->op.type, expr->op);
 
                         finalElement = newValue;
-                        environment->assign(varExpr->name, targetObj);
                         return expr->isPrefix ? newValue : currentValue;
                     } else {
-                        currentAny = &(arrayPtr->elements[idx]);
+                        currentAny = &((*arrayPtr->elements)[idx]);
                     }
                 } else {
                     throw RuntimeError(expr->op, "Tentativa de acessar índice de um tipo não indexável.");
@@ -622,11 +621,11 @@ public:
         }
 
         if(target.type() == typeid(TypedArray)) {
-            TypedArray typedArray = std::any_cast<TypedArray>(target);
-            if(index < 0 || index >= typedArray.elements.size()) {
+            const TypedArray& typedArray = std::any_cast<const TypedArray&>(target);
+            if(index < 0 || index >= typedArray.elements->size()) {
                 throw RuntimeError(expr->bracketToken, "Índice do vetor fora dos limites.");
             }
-            return typedArray.elements[index];
+            return (*typedArray.elements)[index];
         }
 
         throw RuntimeError(expr->bracketToken, "Só é possível acessar índices de vetores ou textos.");
@@ -659,28 +658,26 @@ public:
             
             if(currentAny->type() == typeid(TypedArray)) {
                 TypedArray* arrayPtr = std::any_cast<TypedArray>(currentAny);
-                if(idx < 0 || idx >= arrayPtr->elements.size()) throw RuntimeError(expr->op, "Índice do vetor fora dos limites.");
+                if(idx < 0 || idx >= arrayPtr->elements->size()) throw RuntimeError(expr->op, "Índice do vetor fora dos limites.");
                 
                 if(i == indexes.size() - 1) {
-                    std::any& finalElement = arrayPtr->elements[idx];
+                    std::any& finalElement = (*arrayPtr->elements)[idx];
                     
                     if(expr->op.type != TokenType::EQUAL) {
                         newValue = calculateMathAndRelationals(finalElement, expr->op, newValue);
                     }
-                    
+
                     std::vector<Token> currentExpectedType = environment->getType(varExpr->name);
                     for(size_t d = 0; d <= i; d++) {
                         currentExpectedType = extractSubtype(currentExpectedType);
                     }
-                    
                     enforceType(currentExpectedType, newValue, expr->op);
                     
                     finalElement = newValue;
-                    environment->assign(varExpr->name, targetObj);
                     return newValue;
                     
                 } else {
-                    currentAny = &(arrayPtr->elements[idx]);
+                    currentAny = &((*arrayPtr->elements)[idx]);
                 }
             } else if(currentAny->type() == typeid(std::string)) {
                 if(i != indexes.size() - 1) throw RuntimeError(expr->op, "Não é possível acessar índices dentro de um texto.");
@@ -715,7 +712,7 @@ public:
         for(const auto& elementExpr : expr->elements) {
             elements.emplace_back(evaluate(elementExpr.get()));
         }
-        return TypedArray{{}, elements};
+        return TypedArray{std::make_shared<std::vector<Token>>(), std::make_shared<std::vector<std::any>>(elements)};
     }
 
     std::any visitInstantiateExpr(InstantiateExpr* expr) override {
@@ -735,7 +732,7 @@ public:
         validateType(expectedSubType, initialValue, expr->type[0]);
 
         std::vector<std::any> elements(size, initialValue);
-        return TypedArray{expr->type, elements};
+        return TypedArray{std::make_shared<std::vector<Token>>(expr->type), std::make_shared<std::vector<std::any>>(elements)};
     }
 
     void executeBlock(const std::vector<std::unique_ptr<Stmt>>& statements, std::shared_ptr<Environment> innerEnvironment) {
