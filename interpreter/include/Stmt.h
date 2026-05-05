@@ -83,12 +83,13 @@ public:
 
 class ForStmt : public Stmt {
 public:
+    Token keyword;
     std::unique_ptr<Stmt> initializer;
     std::unique_ptr<Expr> condition;
     std::unique_ptr<Expr> increment;
     std::unique_ptr<Stmt> body;
-    ForStmt(std::unique_ptr<Stmt> init, std::unique_ptr<Expr> cond, std::unique_ptr<Expr> inc, std::unique_ptr<Stmt> body) 
-        : initializer(std::move(init)), condition(std::move(cond)), increment(std::move(inc)), body(std::move(body)) {}
+    ForStmt(std::unique_ptr<Stmt> init, std::unique_ptr<Expr> cond, std::unique_ptr<Expr> inc, std::unique_ptr<Stmt> body, Token keyword)
+        : initializer(std::move(init)), condition(std::move(cond)), increment(std::move(inc)), body(std::move(body)), keyword(keyword) {}
     void accept(StmtVisitor* visitor) override { visitor->visitForStmt(this); }
 };
 

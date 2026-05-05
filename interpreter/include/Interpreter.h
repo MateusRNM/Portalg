@@ -796,7 +796,49 @@ public:
     }
 
     void visitForStmt(ForStmt* stmt) override {
-        throw std::runtime_error("visitForStmt não implementado ainda.");
+        std::shared_ptr<Environment> previousEnv = this->environment;
+        this->environment = std::make_shared<Environment>(this->environment);
+        loopDepth++;
+        try {
+            if(stmt->initializer != nullptr) {
+                if(BlockStmt* blockInit = dynamic_cast<BlockStmt*>(stmt->initializer.get())) {
+                    for(const auto& st : blockInit->statements) {
+                        execute(st.get());
+                    }
+                }
+                execute(stmt->initializer.get());
+            }
+
+            while(true) {
+                if(stmt->condition != nullptr) {
+                    std::any conditionResult = evaluate(stmt->condition.get());
+                    
+                    if(conditionResult.type() != typeid(bool)) {
+                        throw RuntimeError(stmt->keyword, "A condição do laço de repetição deve ser um valor lógico.");
+                    }
+
+                    if(!std::any_cast<bool>(conditionResult)) {
+                        break;
+                    }
+                }
+
+                try {
+                    execute(stmt->body.get());
+                } catch(const ContinueException& e) {
+                }
+
+                if(stmt->increment != nullptr) {
+                    evaluate(stmt->increment.get());
+                }
+            }
+        } catch(const BreakException& e) {
+        } catch(...) {
+            this->environment = previousEnv;
+            loopDepth--;
+            throw;
+        }
+        loopDepth--;
+        this->environment = previousEnv;
     }
 
     void visitBreakStmt(BreakStmt* stmt) override {

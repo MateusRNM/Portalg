@@ -334,6 +334,7 @@ std::unique_ptr<Stmt> Parser::whileStmt() {
 }
 
 std::unique_ptr<Stmt> Parser::forStmt() {
+    Token keyword = previous();
     consume(TokenType::LEFT_PAREN, "Esperado '(' após o 'para'");
     
     std::unique_ptr<Stmt> initializer;
@@ -365,7 +366,7 @@ std::unique_ptr<Stmt> Parser::forStmt() {
     consume(TokenType::LEFT_BRACE, "Esperado '{' após o 'para'");
     std::unique_ptr<Stmt> body = block();
 
-    return std::make_unique<ForStmt>(std::move(initializer), std::move(condition), std::move(increment), std::move(body));
+    return std::make_unique<ForStmt>(std::move(initializer), std::move(condition), std::move(increment), std::move(body), keyword);
 }
 
 std::unique_ptr<Stmt> Parser::returnStmt() {
