@@ -120,9 +120,10 @@ std::unique_ptr<Expr> Parser::call() {
     std::unique_ptr<Expr> expr = primary();
     while(true) {
         if(match({TokenType::LEFT_BRACKET})) {
+            Token bracketToken = previous();
             std::unique_ptr<Expr> index = expression();
             consume(TokenType::RIGHT_BRACKET, "Esperado ']' após o índice.");
-            expr = std::make_unique<IndexAccessExpr>(std::move(expr), std::move(index));
+            expr = std::make_unique<IndexAccessExpr>(std::move(expr), std::move(index), bracketToken);
         } else if(match({TokenType::LEFT_PAREN})) {
             Token openToken = previous();
             std::vector<std::unique_ptr<Expr>> args;
@@ -445,11 +446,11 @@ std::vector<Token> Parser::type() {
         types.emplace_back(previous());
     } else if(match({TokenType::KW_VECTOR})) {
         types.emplace_back(previous());
-        consume(TokenType::LESS, "Esperado '<' para abrir a definição do tipo do vetor.");
+        types.emplace_back(consume(TokenType::LESS, "Esperado '<' para abrir a definição do tipo do vetor."));
         for(Token ty : type()) {
             types.emplace_back(ty);
         }
-        consume(TokenType::GREATER, "Esperado '>' para fechar a definição do tipo do vetor.");
+        types.emplace_back(consume(TokenType::GREATER, "Esperado '>' para fechar a definição do tipo do vetor."));
     }
 
     if(types.empty()) {

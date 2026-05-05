@@ -137,9 +137,10 @@ public:
 
 class IndexAccessExpr : public Expr {
 public:
+    Token bracketToken;
     std::unique_ptr<Expr> target;
     std::unique_ptr<Expr> index;
-    IndexAccessExpr(std::unique_ptr<Expr> target, std::unique_ptr<Expr> index) : target(std::move(target)), index(std::move(index)) {}
+    IndexAccessExpr(std::unique_ptr<Expr> target, std::unique_ptr<Expr> index, Token bracketToken) : target(std::move(target)), index(std::move(index)), bracketToken(bracketToken) {}
     std::any accept(ExprVisitor* visitor) override { return visitor->visitIndexAccessExpr(this); }
 };
 
