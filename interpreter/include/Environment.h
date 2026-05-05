@@ -20,6 +20,13 @@ class BreakException : public std::exception {
         }
 };
 
+class ContinueException : public std::exception {
+    public:
+        const char* what() const noexcept override {
+            return "Flux control: Continue";
+        }
+};
+
 struct VariableData {
     std::any value;
     bool isConst;

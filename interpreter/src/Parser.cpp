@@ -323,13 +323,14 @@ std::unique_ptr<Stmt> Parser::ifStmt() {
 }
 
 std::unique_ptr<Stmt> Parser::whileStmt() {
+    Token keyword = previous();
     consume(TokenType::LEFT_PAREN, "Esperado '(' após o 'enquanto'");
     std::unique_ptr<Expr> condition = expression();
     consume(TokenType::RIGHT_PAREN, "Esperado ')' após a condição do 'enquanto'");
 
     consume(TokenType::LEFT_BRACE, "Esperado '{' após o 'enquanto'");
     std::unique_ptr<Stmt> body = block();
-    return std::make_unique<WhileStmt>(std::move(condition), std::move(body));
+    return std::make_unique<WhileStmt>(std::move(condition), std::move(body), keyword);
 }
 
 std::unique_ptr<Stmt> Parser::forStmt() {

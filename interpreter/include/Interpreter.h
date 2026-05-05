@@ -403,6 +403,19 @@ public:
             return std::any_cast<bool>(operand) ? "verdadeiro" : "falso";
         }
 
+        if(operand.type() == typeid(TypedArray)) {
+            std::string result = "[";
+            const auto elements = std::any_cast<TypedArray>(operand).elements;
+            for(size_t i = 0; i < elements.size(); i++) {
+                result += stringify(elements[i]);
+                if(i < elements.size()-1) {
+                    result += ", ";
+                }
+            }
+            result += "]";
+            return result;
+        }
+
         return "Impossível converter para texto.";
     }
 
@@ -759,7 +772,27 @@ public:
     }
 
     void visitWhileStmt(WhileStmt* stmt) override {
-        throw std::runtime_error("visitWhileStmt não implementado ainda.");
+        loopDepth++;
+        try {
+            while(true) {
+                std::any conditionResult = evaluate(stmt->condition.get());
+
+                if(conditionResult.type() != typeid(bool)) {
+                    throw RuntimeError(stmt->keyword, "A condição do laço de repetição deve ser um valor lógico.");
+                }
+
+                if(!std::any_cast<bool>(conditionResult)) {
+                    break;
+                }
+
+                try {
+                    execute(stmt->body.get());
+                } catch(const ContinueException& e) {
+                }
+            }
+        } catch(const BreakException& e) {
+        }
+        loopDepth--;
     }
 
     void visitForStmt(ForStmt* stmt) override {
@@ -777,7 +810,7 @@ public:
         if(loopDepth == 0) {
             throw RuntimeError(stmt->keyword, "O comando 'continuar' só pode ser utilizado dentro de laços de repetição.");
         }
-        // throw ContinueException();
+        throw ContinueException();
     }
 
     void visitReturnStmt(ReturnStmt* stmt) override {
@@ -795,7 +828,6 @@ public:
         std::any switchValue = evaluate(stmt->target.get());
         bool fallthrough = false;
         switchDepth++;
-
         try {
             for(const auto& switchCase : stmt->cases) {
                 if(fallthrough) {
