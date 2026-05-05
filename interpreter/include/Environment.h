@@ -13,6 +13,13 @@ class RuntimeError : public std::runtime_error {
         RuntimeError(Token token, std::string message) : std::runtime_error(message), token(token) {}
 };
 
+class BreakException : public std::exception {
+    public:
+        const char* what() const noexcept override {
+            return "Flux control: Break";
+        }
+};
+
 struct VariableData {
     std::any value;
     bool isConst;

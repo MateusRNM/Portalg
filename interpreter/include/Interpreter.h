@@ -26,6 +26,9 @@ struct TypedArray {
 class Interpreter : public ExprVisitor, public StmtVisitor {
 private:
     std::shared_ptr<Environment> environment = std::make_shared<Environment>();
+    int loopDepth = 0;
+    int switchDepth = 0;
+    int functionDepth = 0;
 
     std::any evaluate(Expr* expr) {
         return expr->accept(this);
@@ -360,6 +363,9 @@ public:
     }
 
     void interpret(const std::vector<std::unique_ptr<Stmt>>& statements) {
+        loopDepth = 0;
+        switchDepth = 0;
+        functionDepth = 0;
         try {
             for (const auto& statement : statements) {
                 execute(statement.get());
@@ -761,15 +767,24 @@ public:
     }
 
     void visitBreakStmt(BreakStmt* stmt) override {
-        throw std::runtime_error("visitBreakStmt não implementado ainda.");
+        if(loopDepth == 0 && switchDepth == 0) {
+            throw RuntimeError(stmt->keyword, "O comando 'parar' só pode ser utilizado dentro de laços de repetição ou bloco 'escolha'.");
+        }
+        throw BreakException();
     }
 
     void visitContinueStmt(ContinueStmt* stmt) override {
-        throw std::runtime_error("visitContinueStmt não implementado ainda.");
+        if(loopDepth == 0) {
+            throw RuntimeError(stmt->keyword, "O comando 'continuar' só pode ser utilizado dentro de laços de repetição.");
+        }
+        // throw ContinueException();
     }
 
     void visitReturnStmt(ReturnStmt* stmt) override {
-        throw std::runtime_error("visitReturnStmt não implementado ainda.");
+        if(functionDepth == 0) {
+            throw RuntimeError(stmt->keyword, "O comando 'retornar' só pode ser utilizado dentro de funções.");
+        }
+        // throw ReturnException(value);
     }
 
     void visitFunctionStmt(FunctionStmt* stmt) override {
@@ -777,6 +792,33 @@ public:
     }
 
     void visitSwitchStmt(SwitchStmt* stmt) override {
-        throw std::runtime_error("visitSwitchStmt não implementado ainda.");
+        std::any switchValue = evaluate(stmt->target.get());
+        bool fallthrough = false;
+        switchDepth++;
+
+        try {
+            for(const auto& switchCase : stmt->cases) {
+                if(fallthrough) {
+                    executeBlock(switchCase.body, std::make_shared<Environment>(this->environment));
+                } else {
+                    bool isDefault = (switchCase.matchExpr == nullptr);
+                    bool matched;
+
+                    if(isDefault) {
+                        matched = true;
+                    } else {
+                        std::any caseValue = evaluate(switchCase.matchExpr.get());
+                        matched = isEqual(switchValue, caseValue);
+                    }
+
+                    if(matched) {
+                        fallthrough = true;
+                        executeBlock(switchCase.body, std::make_shared<Environment>(this->environment));
+                    }
+                }
+            }
+        } catch(const BreakException& e) {
+        }
+        switchDepth--;
     }
 };
