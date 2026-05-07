@@ -362,6 +362,49 @@ public:
         environment->define("leia", std::shared_ptr<PortalgCallable>(std::make_shared<NativeLeia>()), true, {});
     }
 
+    struct PortalgUserFunction : public PortalgCallable {
+        FunctionStmt* declaration;
+        std::shared_ptr<Environment> closure;
+
+        PortalgUserFunction(FunctionStmt* declaration, std::shared_ptr<Environment> closure) : declaration(declaration), closure(closure) {}
+
+        int arity() override {
+            return declaration->params.size();
+        }
+
+        std::any call(Interpreter* interpreter, const std::vector<std::any>& arguments) override {
+            std::shared_ptr<Environment> env = std::make_shared<Environment>(closure);
+            for(size_t i = 0; i < declaration->params.size(); i++) {
+                std::any arg = arguments[i];
+                interpreter->enforceType(declaration->params[i].type, arg, declaration->params[i].name);
+                env->define(declaration->params[i].name.lexeme, arg, false, declaration->params[i].type);
+            }
+            interpreter->functionDepth++;
+
+            try {
+                interpreter->executeBlock(declaration->body, env);
+            } catch(const ReturnException& e) {
+                interpreter->functionDepth--;
+                std::any retVal = e.value;
+                if(!declaration->returnType.empty()) {
+                    interpreter->enforceType(declaration->returnType, retVal, declaration->name);
+                }
+                return retVal;
+            } catch(...) {
+                interpreter->functionDepth--;
+                throw;
+            }
+
+            interpreter->functionDepth--;
+
+            if(!declaration->returnType.empty()) {
+                throw RuntimeError(declaration->name, "A função exige um retorno, mas não retornou nenhum valor.");
+            }
+
+            return {};
+        }
+    };
+
     void interpret(const std::vector<std::unique_ptr<Stmt>>& statements) {
         loopDepth = 0;
         switchDepth = 0;
@@ -856,11 +899,19 @@ public:
         if(functionDepth == 0) {
             throw RuntimeError(stmt->keyword, "O comando 'retornar' só pode ser utilizado dentro de funções.");
         }
-        // throw ReturnException(value);
+
+        std::any value = {};
+
+        if(stmt->value != nullptr) {
+            value = evaluate(stmt->value.get());
+        }
+
+        throw ReturnException(value);
     }
 
     void visitFunctionStmt(FunctionStmt* stmt) override {
-        throw std::runtime_error("visitFunctionStmt não implementado ainda.");
+        std::shared_ptr<PortalgCallable> function = std::make_shared<PortalgUserFunction>(stmt, this->environment);
+        environment->define(stmt->name.lexeme, function, true, stmt->returnType);
     }
 
     void visitSwitchStmt(SwitchStmt* stmt) override {

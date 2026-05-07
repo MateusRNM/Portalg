@@ -27,6 +27,16 @@ class ContinueException : public std::exception {
         }
 };
 
+class ReturnException : public std::exception {
+    public:
+        std::any value;
+        ReturnException(std::any value) : value(std::move(value)) {}
+        
+        const char* what() const noexcept override {
+            return "Flux control: Return";
+        }
+};
+
 struct VariableData {
     std::any value;
     bool isConst;
