@@ -386,7 +386,7 @@ public:
             } catch(const ReturnException& e) {
                 interpreter->functionDepth--;
                 std::any retVal = e.value;
-                if(!declaration->returnType.empty()) {
+                if(!(declaration->returnType[0].type == TokenType::KW_VOID)) {
                     interpreter->enforceType(declaration->returnType, retVal, declaration->name);
                 }
                 return retVal;
@@ -397,7 +397,7 @@ public:
 
             interpreter->functionDepth--;
 
-            if(!declaration->returnType.empty()) {
+            if(!(declaration->returnType[0].type == TokenType::KW_VOID)) {
                 throw RuntimeError(declaration->name, "A função exige um retorno, mas não retornou nenhum valor.");
             }
 

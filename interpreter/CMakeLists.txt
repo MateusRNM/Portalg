@@ -15,6 +15,14 @@ add_library(portalg_core
 add_executable(portalg src/main.cpp)
 target_link_libraries(portalg PRIVATE portalg_core)
 
+set(TARGET_NAME portalg)
+
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    target_link_options(${TARGET_NAME} PRIVATE -static -s)
+elseif(MSVC)
+    set_property(TARGET ${TARGET_NAME} PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded")
+endif()
+
 include(FetchContent)
 FetchContent_Declare(
   googletest
