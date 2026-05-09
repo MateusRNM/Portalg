@@ -47,12 +47,36 @@ class Environment : public std::enable_shared_from_this<Environment> {
     private:
         std::unordered_map<std::string, VariableData> values;
         std::shared_ptr<Environment> enclosing;
+
+        Environment* ancestor(int distance) {
+            Environment* environment = this;
+            for(int i = 0; i < distance; i++) {
+                environment = environment->enclosing.get();
+            }
+            return environment;
+        }
     public:
         Environment() : enclosing(nullptr) {}
         Environment(std::shared_ptr<Environment> enclosing) : enclosing(enclosing) {}
 
         void define(const std::string& name, std::any value, bool isConst, std::vector<Token> type) {
             values[name] = {std::move(value), isConst, type};
+        }
+
+        std::any getAt(int distance, const std::string& name) {
+            return ancestor(distance)->values.at(name).value;
+        }
+
+        void assignAt(int distance, Token name, std::any value) {
+            VariableData& varData = ancestor(distance)->values[name.lexeme];
+            if(varData.isConst) {
+                throw RuntimeError(name, "Tentativa de reatribuição à constante '" + name.lexeme + "'.");
+            }
+            varData.value = std::move(value);
+        }
+
+        std::vector<Token> getTypeAt(int distance, const std::string& name) {
+            return ancestor(distance)->values.at(name).type;
         }
 
         std::any get(Token name) {
@@ -101,9 +125,5 @@ class Environment : public std::enable_shared_from_this<Environment> {
 
         std::unordered_map<std::string, VariableData> getLocals() const {
             return values;
-        }
-
-        std::shared_ptr<Environment> getEnclosing() const {
-            return enclosing;
         }
 };

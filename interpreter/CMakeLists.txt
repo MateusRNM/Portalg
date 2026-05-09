@@ -10,6 +10,7 @@ add_library(portalg_core
     src/Scanner.cpp
     src/ErrorHandler.cpp
     src/Parser.cpp
+    src/Callables.cpp
 )
 
 add_executable(portalg src/main.cpp)

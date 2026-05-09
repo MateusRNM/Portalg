@@ -2,21 +2,12 @@
 #include "Expr.h"
 #include "Stmt.h"
 #include "Environment.h"
+#include "Callables.h"
 #include <any>
 #include <string>
 #include <stdexcept>
 #include <typeinfo>
 #include <cmath>
-#include <iostream>
-
-class Interpreter;
-
-class PortalgCallable {
-    public:
-        virtual ~PortalgCallable() = default;
-        virtual int arity() = 0;
-        virtual std::any call(Interpreter* interpreter, const std::vector<std::any>& arguments) = 0;
-};
 
 struct TypedArray {
     std::shared_ptr<std::vector<Token>> typeTokens;
@@ -326,40 +317,15 @@ private:
 
 public:
     Interpreter() {
+        environment->define("escreva", std::shared_ptr<PortalgCallable>(std::make_shared<NativeEscreva>()), true, {{TokenType::KW_VOID, "", 0}});
+        environment->define("escreval", std::shared_ptr<PortalgCallable>(std::make_shared<NativeEscreval>()), true, {{TokenType::KW_VOID, "", 0}});
+        environment->define("leia", std::shared_ptr<PortalgCallable>(std::make_shared<NativeLeia>()), true, {{TokenType::KW_TEXT, "", 0}});
+    }
 
-        struct NativeEscreva : public PortalgCallable {
-            int arity() override { return -1; }
-            std::any call(Interpreter* interpreter, const std::vector<std::any>& arguments) override {
-                for(const auto& arg: arguments) {
-                    std::cout << interpreter->stringify(arg);
-                }
-                return {};
-            }
-        };
+    std::unordered_map<Expr*, int> locals;
 
-        struct NativeEscreval : public PortalgCallable {
-            int arity() override { return -1; }
-            std::any call(Interpreter* interpreter, const std::vector<std::any>& arguments) override {
-                for(const auto& arg: arguments) {
-                    std::cout << interpreter->stringify(arg);
-                }
-                std::cout << '\n';
-                return {};
-            }
-        };
-
-        struct NativeLeia : public PortalgCallable {
-            int arity() override { return 0; }
-            std::any call(Interpreter* interpreter, const std::vector<std::any>& arguments) override {
-                std::string input;
-                std::getline(std::cin, input);
-                return input;
-            }
-        };
-
-        environment->define("escreva", std::shared_ptr<PortalgCallable>(std::make_shared<NativeEscreva>()), true, {});
-        environment->define("escreval", std::shared_ptr<PortalgCallable>(std::make_shared<NativeEscreval>()), true, {});
-        environment->define("leia", std::shared_ptr<PortalgCallable>(std::make_shared<NativeLeia>()), true, {});
+    void resolve(Expr* expr, int depth) {
+        locals[expr] = depth;
     }
 
     struct PortalgUserFunction : public PortalgCallable {
@@ -410,7 +376,7 @@ public:
         switchDepth = 0;
         functionDepth = 0;
         try {
-            for (const auto& statement : statements) {
+            for(const auto& statement : statements) {
                 execute(statement.get());
             }
         } catch (const RuntimeError& error) {
@@ -501,10 +467,17 @@ public:
 
     std::any visitPrefixPostfixExpr(PrefixPostfixExpr* expr) override {
         if(VariableExpr* varExpr = dynamic_cast<VariableExpr*>(expr->target.get())) {
-            std::any currentValue = environment->get(varExpr->name);
+            auto it = locals.find(varExpr);
+            bool isLocal = it != locals.end();
+            int distance = isLocal ? it->second : 0;
+            std::any currentValue = isLocal ? environment->getAt(distance, varExpr->name.lexeme) : environment->get(varExpr->name);
             std::any newValue = applyIncrementDecrement(currentValue, expr->op.type, expr->op);
 
-            environment->assign(varExpr->name, newValue);
+            if(isLocal) {
+                environment->assignAt(distance, varExpr->name, newValue);
+            } else {
+               environment->assign(varExpr->name, newValue);
+            }
 
             if(expr->isPrefix) {
                 return newValue;
@@ -529,7 +502,10 @@ public:
             VariableExpr* varExpr = dynamic_cast<VariableExpr*>(currentTarget);
             if(!varExpr) throw RuntimeError(expr->op, "O alvo da atribuição de índice deve ser uma variável.");
 
-            std::any targetObj = environment->get(varExpr->name);
+            auto it = locals.find(varExpr);
+            bool isLocal = it != locals.end();
+            int distance = isLocal ? it->second : 0;
+            std::any targetObj = isLocal ? environment->getAt(distance, varExpr->name.lexeme) : environment->get(varExpr->name);
             std::any* currentAny = &targetObj;
             
             for(size_t i = 0; i < indexes.size(); i++) {
@@ -558,7 +534,13 @@ public:
     }
 
     std::any visitVariableExpr(VariableExpr* expr) override {
-        return environment->get(expr->name);
+        auto it = locals.find(expr);
+        if(it != locals.end()) {
+            int distance = it->second;
+            return environment->getAt(distance, expr->name.lexeme);
+        } else {
+            return environment->get(expr->name);
+        }
     }
 
     std::any visitLogicalExpr(LogicalExpr* expr) override {
@@ -608,15 +590,24 @@ public:
 
     std::any visitAssignExpr(AssignExpr* expr) override {
         std::any value = evaluate(expr->value.get());
+        auto it = locals.find(expr);
+        bool isLocal = it != locals.end();
+        int distance = isLocal ? it->second : 0;
+
         if(expr->op.type != TokenType::EQUAL) {
-            std::any currentValue = environment->get(expr->name);
+            std::any currentValue = isLocal ? environment->getAt(distance, expr->name.lexeme) : environment->get(expr->name);
             value = calculateMathAndRelationals(currentValue, expr->op, value);
         }
 
-        std::vector<Token> varType = environment->getType(expr->name);
+        std::vector<Token> varType = isLocal ? environment->getTypeAt(distance, expr->name.lexeme) : environment->getType(expr->name);
         enforceType(varType, value, expr->name);
 
-        environment->assign(expr->name, value);
+        if(isLocal) {
+            environment->assignAt(distance, expr->name, value);
+        } else {
+            environment->assign(expr->name, value);
+        }
+
         return value;
     }
 
@@ -692,7 +683,11 @@ public:
         VariableExpr* varExpr = dynamic_cast<VariableExpr*>(currentTarget);
         if(!varExpr) throw RuntimeError(expr->op, "O alvo da atribuição de índice deve ser uma variável.");
 
-        std::any targetObj = environment->get(varExpr->name);
+        auto it = locals.find(varExpr);
+        bool isLocal = it != locals.end();
+        int distance = isLocal ? it->second : 0;
+
+        std::any targetObj = isLocal ? environment->getAt(distance, varExpr->name.lexeme) : environment->get(varExpr->name);
         std::any newValue = evaluate(expr->value.get());
         std::any* currentAny = &targetObj;
         
@@ -710,7 +705,7 @@ public:
                         newValue = calculateMathAndRelationals(finalElement, expr->op, newValue);
                     }
 
-                    std::vector<Token> currentExpectedType = environment->getType(varExpr->name);
+                    std::vector<Token> currentExpectedType = isLocal ? environment->getTypeAt(distance, varExpr->name.lexeme) : environment->getType(varExpr->name);
                     for(size_t d = 0; d <= i; d++) {
                         currentExpectedType = extractSubtype(currentExpectedType);
                     }
@@ -718,7 +713,6 @@ public:
                     
                     finalElement = newValue;
                     return newValue;
-                    
                 } else {
                     currentAny = &((*arrayPtr->elements)[idx]);
                 }
@@ -741,7 +735,11 @@ public:
                     throw RuntimeError(expr->op, "Apenas caracteres podem ser atribuídos a índices de texto.");
                 }
                 
-                environment->assign(varExpr->name, targetObj);
+                if(isLocal) {
+                    environment->assignAt(distance, varExpr->name, targetObj);
+                } else {
+                    environment->assign(varExpr->name, targetObj);
+                }
                 return newValue;
             } else {
                 throw RuntimeError(expr->op, "Tentativa de acessar índice de um tipo não indexável.");

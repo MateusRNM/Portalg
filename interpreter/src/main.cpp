@@ -8,220 +8,13 @@
 #include "Parser.h"
 #include "ErrorHandler.h"
 #include "Token.h"
+#include "Resolver.h"
 #include "Interpreter.h"
 
-class ASTPrinter : public ExprVisitor {
-public:
-    std::string print(Expr* expr) {
-        if (expr == nullptr) return "nulo";
-        return std::any_cast<std::string>(expr->accept(this));
-    }
-
-private:
-    std::string parenthesize(std::string name, std::vector<Expr*> exprs) {
-        std::string result = "(" + name;
-        for (Expr* expr : exprs) {
-            result += " " + print(expr);
-        }
-        result += ")";
-        return result;
-    }
-
-    std::string parenthesizeStr(std::string name, std::vector<std::string> parts) {
-        std::string result = "(" + name;
-        for (const std::string& part : parts) {
-            result += " " + part;
-        }
-        result += ")";
-        return result;
-    }
-
-public:
-    std::any visitBinaryExpr(BinaryExpr* expr) override {
-        return parenthesize(expr->op.lexeme, {expr->left.get(), expr->right.get()});
-    }
-
-    std::any visitLogicalExpr(LogicalExpr* expr) override {
-        return parenthesize(expr->op.lexeme, {expr->left.get(), expr->right.get()});
-    }
-
-    std::any visitUnaryExpr(UnaryExpr* expr) override {
-        return parenthesize(expr->op.lexeme, {expr->right.get()});
-    }
-
-    std::any visitPrefixPostfixExpr(PrefixPostfixExpr* expr) override {
-        std::string name = expr->isPrefix ? "pre_" : "pos_";
-        return parenthesize(name + expr->op.lexeme, {expr->target.get()});
-    }
-
-    std::any visitTernaryExpr(TernaryExpr* expr) override {
-        return parenthesize("?", {expr->condition.get(), expr->trueExpr.get(), expr->falseExpr.get()});
-    }
-
-    std::any visitAssignExpr(AssignExpr* expr) override {
-        return parenthesize(expr->op.lexeme + " " + expr->name.lexeme, {expr->value.get()});
-    }
-
-    std::any visitIndexAssignExpr(IndexAssignExpr* expr) override {
-        return parenthesize(expr->op.lexeme + "_index", {expr->target.get(), expr->index.get(), expr->value.get()});
-    }
-
-    std::any visitCallExpr(CallExpr* expr) override {
-        std::string result = "(chamada " + print(expr->callee.get());
-        for (auto& arg : expr->arguments) {
-            result += " " + print(arg.get());
-        }
-        result += ")";
-        return result;
-    }
-
-    std::any visitMethodCallExpr(MethodCallExpr* expr) override {
-        std::string result = "(metodo " + print(expr->object.get()) + " ." + expr->methodName.lexeme;
-        for (auto& arg : expr->arguments) {
-            result += " " + print(arg.get());
-        }
-        result += ")";
-        return result;
-    }
-
-    std::any visitIndexAccessExpr(IndexAccessExpr* expr) override {
-        return parenthesize("acesso_vetor", {expr->target.get(), expr->index.get()});
-    }
-
-    std::any visitArrayLiteralExpr(ArrayLiteralExpr* expr) override {
-        std::string result = "(vetor";
-        for (auto& el : expr->elements) {
-            result += " " + print(el.get());
-        }
-        result += ")";
-        return result;
-    }
-
-    std::any visitInstantiateExpr(InstantiateExpr* expr) override {
-        return parenthesize("instanciar_" + expr->type[0].lexeme, {expr->size.get(), expr->initialValue.get()});
-    }
-
-    std::any visitVariableExpr(VariableExpr* expr) override {
-        return expr->name.lexeme;
-    }
-
-    std::any visitLiteralExpr(LiteralExpr* expr) override {
-        if (!expr->value.has_value()) return std::string("nulo");
-        
-        if (expr->value.type() == typeid(double)) return std::to_string(std::any_cast<double>(expr->value));
-        if (expr->value.type() == typeid(long long)) return std::to_string(std::any_cast<long long>(expr->value));
-        if (expr->value.type() == typeid(std::string)) return "\"" + std::any_cast<std::string>(expr->value) + "\"";
-        if (expr->value.type() == typeid(char)) return std::string("'") + std::any_cast<char>(expr->value) + std::string("'");
-        if (expr->value.type() == typeid(bool)) return std::any_cast<bool>(expr->value) ? std::string("verdadeiro") : std::string("falso");
-        
-        return std::string("desconhecido");
-    }
-};
-
-std::string tokenTypeToString(TokenType type) {
-    switch (type) {
-        case TokenType::KW_INTEGER: return "KW_INTEGER";
-        case TokenType::KW_REAL: return "KW_REAL";
-        case TokenType::KW_CHAR: return "KW_CHAR";
-        case TokenType::KW_LOGIC: return "KW_LOGIC";
-        case TokenType::KW_TEXT: return "KW_TEXT";
-        case TokenType::IDENTIFIER: return "IDENTIFIER";
-        case TokenType::LITERAL_INTEGER: return "LITERAL_INTEGER";
-        case TokenType::LITERAL_REAL: return "LITERAL_REAL";
-        case TokenType::LITERAL_TEXT: return "LITERAL_TEXT";
-        case TokenType::LITERAL_CHAR: return "LITERAL_CHAR";
-        case TokenType::EQUAL: return "EQUAL";
-        case TokenType::PLUS: return "PLUS";
-        case TokenType::EOF_TOKEN: return "EOF_TOKEN";
-        default: return "TOKEN_ID(" + std::to_string(static_cast<int>(type)) + ")";
-    }
-}
-
-void printStmt(Stmt* stmt, ASTPrinter& printer, int indent = 0) {
-    if (stmt == nullptr) return;
-    
-    std::string tab(indent, ' '); 
-
-    if (ExpressionStmt* exprStmt = dynamic_cast<ExpressionStmt*>(stmt)) {
-        std::cout << tab << printer.print(exprStmt->expression.get()) << '\n';
-    } else if (VarDeclStmt* varDecl = dynamic_cast<VarDeclStmt*>(stmt)) {
-        std::string tipoDecl = varDecl->isConst ? "(constante " : "(variavel ";
-        std::string nomeTipo = "";
-        for(Token t : varDecl->type) nomeTipo += t.lexeme;
-        
-        std::cout << tab << tipoDecl << nomeTipo << " " << varDecl->name.lexeme;
-        if (varDecl->initializer) {
-            std::cout << " " << printer.print(varDecl->initializer.get());
-        }
-        std::cout << ")\n";
-    } else if (BlockStmt* blockStmt = dynamic_cast<BlockStmt*>(stmt)) {
-        std::cout << tab << "(bloco\n";
-        for (auto& s : blockStmt->statements) {
-            printStmt(s.get(), printer, indent + 4);
-        }
-        std::cout << tab << ")\n";
-    } else if (IfStmt* ifStmt = dynamic_cast<IfStmt*>(stmt)) {
-        std::cout << tab << "(se " << printer.print(ifStmt->condition.get()) << "\n";
-        
-        printStmt(ifStmt->thenBranch.get(), printer, indent + 4);
-        
-        if (ifStmt->elseBranch) {
-            std::cout << tab << "(senao\n";
-            printStmt(ifStmt->elseBranch.get(), printer, indent + 4);
-            std::cout << tab << ")\n";
-        }
-        std::cout << tab << ")\n";
-    } else if (WhileStmt* whileStmt = dynamic_cast<WhileStmt*>(stmt)) {
-        std::cout << tab << "(enquanto " << printer.print(whileStmt->condition.get()) << "\n";
-        printStmt(whileStmt->body.get(), printer, indent + 4);
-        std::cout << tab << ")\n";
-    } else if (ForStmt* forStmt = dynamic_cast<ForStmt*>(stmt)) {
-        std::cout << tab << "(para\n";
-        std::cout << tab << "  [inicializador]\n";
-        if (forStmt->initializer) printStmt(forStmt->initializer.get(), printer, indent + 4);
-        
-        std::cout << tab << "  [condicao] " << (forStmt->condition ? printer.print(forStmt->condition.get()) : "vazio") << "\n";
-        std::cout << tab << "  [incremento] " << (forStmt->increment ? printer.print(forStmt->increment.get()) : "vazio") << "\n";
-        std::cout << tab << "  [corpo]\n";
-        printStmt(forStmt->body.get(), printer, indent + 4);
-        std::cout << tab << ")\n";
-    } else if (SwitchStmt* switchStmt = dynamic_cast<SwitchStmt*>(stmt)) {
-        std::cout << tab << "(escolha " << printer.print(switchStmt->target.get()) << "\n";
-        for (auto& c : switchStmt->cases) {
-            if (c.matchExpr) {
-                std::cout << tab << "  (caso " << printer.print(c.matchExpr.get()) << "\n";
-            } else {
-                std::cout << tab << "  (outrocaso\n";
-            }
-            
-            for (auto& s : c.body) {
-                printStmt(s.get(), printer, indent + 6);
-            }
-            std::cout << tab << "  )\n";
-        }
-        std::cout << tab << ")\n";
-    } else if (FunctionStmt* funcStmt = dynamic_cast<FunctionStmt*>(stmt)) {
-        std::string retType = "";
-        for (Token t : funcStmt->returnType) retType += t.lexeme;
-        
-        std::cout << tab << "(funcao " << retType << " " << funcStmt->name.lexeme << " (";
-        
-        for (size_t i = 0; i < funcStmt->params.size(); ++i) {
-            std::string pType = "";
-            for (Token t : funcStmt->params[i].type) pType += t.lexeme;
-            std::cout << (funcStmt->params[i].isReference ? "&" : "") << pType << " " << funcStmt->params[i].name.lexeme;
-            if (i < funcStmt->params.size() - 1) std::cout << ", ";
-        }
-        std::cout << ")\n";
-        
-        for (auto& s : funcStmt->body) {
-            printStmt(s.get(), printer, indent + 4);
-        }
-        std::cout << tab << ")\n";
-    }
-}
+#include <chrono>
 
 void run(const std::string& source) {
+    auto start = std::chrono::high_resolution_clock::now();
     ErrorHandler errorHandler;
     Scanner scanner(source, errorHandler);
     
@@ -241,14 +34,18 @@ void run(const std::string& source) {
         return;
     }
 
-    // ASTPrinter printer;
-
-    // for(auto& node : ast) {
-    //     printStmt(node.get(), printer);
-    // }
-
     Interpreter interpreter;
-    interpreter.interpret(ast);
+    Resolver resolver(&interpreter);
+
+    try {
+        resolver.resolve(ast);
+        interpreter.interpret(ast);
+    } catch(const RuntimeError& error) {
+        std::cerr << "Erro (Linha " << error.token.line << "): " << error.what() << "\n";
+    }
+    auto stop = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
+    std::cout << "Tempo total: " << duration.count() << "ms\n";
 }
 
 void runFile(const char* path) {
