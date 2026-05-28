@@ -315,6 +315,18 @@ private:
         }
     }
 
+    std::any cloneValue(const std::any& value) {
+        if(value.type() == typeid(TypedArray)) {
+            const TypedArray& originalArray = std::any_cast<const TypedArray&>(value);
+            std::vector<std::any> clonedElements;
+            for(const auto& el : *(originalArray.elements)) {
+                clonedElements.push_back(cloneValue(el));
+            }
+            return TypedArray{originalArray.typeTokens, std::make_shared<std::vector<std::any>>(clonedElements)};
+        }
+        return value;
+    }
+
 public:
     Interpreter() {
         environment->define("escreva", std::shared_ptr<PortalgCallable>(std::make_shared<NativeEscreva>()), true, {{TokenType::KW_VOID, "", 0}});
@@ -633,7 +645,7 @@ public:
     }
 
     std::any visitMethodCallExpr(MethodCallExpr* expr) override {
-        throw std::runtime_error("visitMethodCallExpr não implementado ainda.");
+        throw RuntimeError(expr->methodName, "");
     }
 
     std::any visitIndexAccessExpr(IndexAccessExpr* expr) override {
@@ -772,7 +784,10 @@ public:
         std::vector<Token> expectedSubType = extractSubtype(expr->type);
         validateType(expectedSubType, initialValue, expr->type[0]);
 
-        std::vector<std::any> elements(size, initialValue);
+        std::vector<std::any> elements;
+        for(long long i = 0; i < size; i++) {
+            elements.push_back(cloneValue(initialValue));
+        }
         return TypedArray{std::make_shared<std::vector<Token>>(expr->type), std::make_shared<std::vector<std::any>>(elements)};
     }
 

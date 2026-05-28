@@ -11,10 +11,7 @@
 #include "Resolver.h"
 #include "Interpreter.h"
 
-#include <chrono>
-
 void run(const std::string& source) {
-    auto start = std::chrono::high_resolution_clock::now();
     ErrorHandler errorHandler;
     Scanner scanner(source, errorHandler);
     
@@ -43,9 +40,6 @@ void run(const std::string& source) {
     } catch(const RuntimeError& error) {
         std::cerr << "Erro (Linha " << error.token.line << "): " << error.what() << "\n";
     }
-    auto stop = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
-    std::cout << "Tempo total: " << duration.count() << "ms\n";
 }
 
 void runFile(const char* path) {
