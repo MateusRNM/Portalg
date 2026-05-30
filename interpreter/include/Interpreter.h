@@ -645,7 +645,122 @@ public:
     }
 
     std::any visitMethodCallExpr(MethodCallExpr* expr) override {
-        throw RuntimeError(expr->methodName, "");
+        std::any target = evaluate(expr->object.get());
+        
+        std::vector<std::any> arguments;
+        for(const auto& argExpr : expr->arguments) {
+            arguments.emplace_back(evaluate(argExpr.get()));
+        }
+        std::string methodName = expr->methodName.lexeme;
+
+        if(target.type() == typeid(std::string)) {
+            std::string text = std::any_cast<std::string>(target);
+
+            if(methodName == "tamanho") {
+                if(!arguments.empty()) {
+                    throw RuntimeError(expr->methodName, "O método 'tamanho' não espera argumentos.");
+                }
+                return (long long)text.length();
+            }
+
+            if(methodName == "maiusculo") {
+                if(!arguments.empty()) {
+                    throw RuntimeError(expr->methodName, "O método 'maiusculo' não espera argumentos.");
+                }
+                std::string result = text;
+                for(char& c : result) c = std::toupper(static_cast<unsigned char>(c));
+                return result;
+            }
+
+            if(methodName == "minusculo") {
+                if(!arguments.empty()) {
+                    throw RuntimeError(expr->methodName, "O método 'minusculo' não espera argumentos.");
+                }
+                std::string result = text;
+                for(char& c : result) c = std::tolower(static_cast<unsigned char>(c));
+                return result;
+            }
+
+            if(methodName == "subtexto") {
+                if(arguments.size() != 2) {
+                    throw RuntimeError(expr->methodName, "O método 'subtexto' espera 2 argumentos: índice inicial e índice final.");
+                }
+
+                if(!isInteger(arguments[0]) || !isInteger(arguments[1])) {
+                    throw RuntimeError(expr->methodName, "Os argumentos do método 'subtexto' devem ser números inteiros.");
+                }
+
+                long long init = std::any_cast<long long>(arguments[0]);
+                long long finalIdx = std::any_cast<long long>(arguments[1]);
+
+                if(init < 0 || init > finalIdx || finalIdx >= (long long)text.length()) {
+                    throw RuntimeError(expr->methodName, "Os índices do método 'subtexto' estão fora dos limites.");
+                }
+
+                long long length = finalIdx - init + 1;
+                return text.substr(init, length);
+            }
+
+            throw RuntimeError(expr->methodName, "O método '" + methodName + "' não existe para o tipo texto.");
+        }
+
+        if(target.type() == typeid(TypedArray)) {
+            TypedArray typedArray = std::any_cast<TypedArray>(target);
+
+            if(methodName == "tamanho") {
+                if(!arguments.empty()) {
+                    throw RuntimeError(expr->methodName, "O método 'tamanho' não espera argumentos.");
+                }
+                return (long long)typedArray.elements->size();
+            }
+
+            if(methodName == "copia") {
+                if(!arguments.empty()) {
+                    throw RuntimeError(expr->methodName, "O método 'copia' não espera argumentos.");
+                }
+                return cloneValue(typedArray);
+            }
+
+            if(methodName == "adicionar") {
+                if(arguments.size() != 1) {
+                    throw RuntimeError(expr->methodName, "O método 'adicionar' espera 1 argumento: o elemento a ser adicionado.");
+                }
+
+                std::any element = arguments[0];
+
+                if(!typedArray.typeTokens->empty()) {
+                    std::vector<Token> expectedType = extractSubtype(*typedArray.typeTokens);
+                    enforceType(expectedType, element, expr->methodName);
+                }
+
+                typedArray.elements->push_back(std::move(element));
+                return {};
+            }
+
+            if(methodName == "remover") {
+                if(arguments.size() != 1) {
+                    throw RuntimeError(expr->methodName, "O método 'remover' espera exatamente 1 argumento: o índice do elemento a ser removido.");
+                }
+
+                if(!isInteger(arguments[0])) {
+                    throw RuntimeError(expr->methodName, "O argumento do método 'remover' deve ser um número inteiro.");
+                }
+
+                long long index = std::any_cast<long long>(arguments[0]);
+
+                if(index < 0 || index >= (long long)typedArray.elements->size()) {
+                    throw RuntimeError(expr->methodName, "Índice de remoção fora dos limites do vetor.");
+                }
+
+                std::any removedValue = (*typedArray.elements)[index]; 
+                typedArray.elements->erase(typedArray.elements->begin() + index);
+                return removedValue;
+            }
+
+            throw RuntimeError(expr->methodName, "O método '" + methodName + "' não existe para o tipo vetor.");
+        }
+
+        throw RuntimeError(expr->methodName, "Tipo de dado não possui métodos.");
     }
 
     std::any visitIndexAccessExpr(IndexAccessExpr* expr) override {

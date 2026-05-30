@@ -154,7 +154,11 @@ class Resolver : public ExprVisitor, public StmtVisitor {
         }
 
         std::any visitMethodCallExpr(MethodCallExpr* expr) override {
-            throw std::runtime_error("visitMethodCallExpr não implementado ainda.");
+            resolve(expr->object.get());
+            for(const auto& arg : expr->arguments) {
+                resolve(arg.get());
+            }
+            return {};
         }
 
         std::any visitIndexAccessExpr(IndexAccessExpr* expr) override {
