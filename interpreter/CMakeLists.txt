@@ -7,10 +7,13 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 include_directories(include)
 
 add_library(portalg_core 
-    src/Scanner.cpp
     src/ErrorHandler.cpp
+    src/Scanner.cpp
     src/Parser.cpp
+    src/Environment.cpp
+    src/Resolver.cpp
     src/Callables.cpp
+    src/Interpreter.cpp
 )
 
 add_executable(portalg src/main.cpp)
