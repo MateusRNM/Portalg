@@ -22,3 +22,36 @@ std::any NativeLeia::call(Interpreter *interpreter, const std::vector<std::any> 
     std::getline(std::cin, input);
     return input;
 }
+
+std::any NativeRaiz::call(Interpreter *interpreter, const std::vector<std::any>& arguments) {
+    if(arguments.size() == 0 || arguments.size() > 2) {
+        throw std::runtime_error("A função nativa 'raiz' espera 1 ou 2 argumentos.");
+    }
+
+    double radicand = 0.0;
+    if(arguments[0].type() == typeid(double)) {
+        radicand = std::any_cast<double>(arguments[0]);
+    } else if(arguments[0].type() == typeid(long long)) {
+        radicand = (double)std::any_cast<long long>(arguments[0]);
+    } else {
+        throw std::runtime_error("O radicando da função 'raiz' deve ser numérico.");
+    }
+
+    if(radicand < 0) {
+        throw std::runtime_error("Não existem raízes reais para números negativos.");
+    }
+
+    long long degree = 2;
+    if(arguments.size() == 2) {
+        if(arguments[1].type() != typeid(long long)) {
+            throw std::runtime_error("O índice da função 'raiz' deve ser um número inteiro.");
+        }
+        degree = std::any_cast<long long>(arguments[1]);
+    }
+
+    if(degree <= 0) {
+        throw std::runtime_error("O índice da função 'raiz' deve ser um número inteiro positivo.");
+    }
+
+    return std::pow(radicand, 1.0 / (double)degree);
+}

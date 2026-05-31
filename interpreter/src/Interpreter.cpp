@@ -325,6 +325,7 @@ Interpreter::Interpreter() {
     environment->define("escreva", std::shared_ptr<PortalgCallable>(std::make_shared<NativeEscreva>()), true, {{TokenType::KW_VOID, "", 0}});
     environment->define("escreval", std::shared_ptr<PortalgCallable>(std::make_shared<NativeEscreval>()), true, {{TokenType::KW_VOID, "", 0}});
     environment->define("leia", std::shared_ptr<PortalgCallable>(std::make_shared<NativeLeia>()), true, {{TokenType::KW_TEXT, "", 0}});
+    environment->define("raiz", std::shared_ptr<PortalgCallable>(std::make_shared<NativeRaiz>()), true, {{TokenType::KW_REAL, "", 0}});
 }
 
 void Interpreter::resolve(Expr* expr, int depth) {
