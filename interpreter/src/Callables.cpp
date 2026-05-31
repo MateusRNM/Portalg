@@ -85,3 +85,29 @@ std::any NativeLog::call(Interpreter *interpreter, const std::vector<std::any>& 
 
     return std::log(logaritm) / std::log(base);
 }
+
+std::any NativeArredondaCima::call(Interpreter *interpreter, const std::vector<std::any>& arguments) {
+    double value = 0.0;
+    if(arguments[0].type() == typeid(double)) {
+        value = std::any_cast<double>(arguments[0]);
+    } else if(arguments[0].type() == typeid(long long)) {
+        value = (double)std::any_cast<long long>(arguments[0]);
+    } else {
+        throw std::runtime_error("O argumento da função 'arredonda_cima' deve ser numérico.");
+    }
+
+    return std::ceil(value);
+}
+
+std::any NativeArredondaBaixo::call(Interpreter *interpreter, const std::vector<std::any>& arguments) {
+    double value = 0.0;
+    if(arguments[0].type() == typeid(double)) {
+        value = std::any_cast<double>(arguments[0]);
+    } else if(arguments[0].type() == typeid(long long)) {
+        value = (double)std::any_cast<long long>(arguments[0]);
+    } else {
+        throw std::runtime_error("O argumento da função 'arredonda_baixo' deve ser numérico.");
+    }
+    
+    return std::floor(value);
+}
