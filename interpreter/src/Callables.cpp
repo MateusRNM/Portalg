@@ -1,6 +1,7 @@
 #include "Callables.h"
 #include "Interpreter.h"
 #include <iostream>
+#include <random>
 
 std::any NativeEscreva::call(Interpreter *interpreter, const std::vector<std::any> &arguments) {
     for (const auto &arg : arguments) {
@@ -110,4 +111,36 @@ std::any NativeArredondaBaixo::call(Interpreter *interpreter, const std::vector<
     }
     
     return std::floor(value);
+}
+
+std::any NativeAleatorio::call(Interpreter *interpreter, const std::vector<std::any>& arguments) {
+    double min = 0.0;
+    if(arguments[0].type() == typeid(double)) {
+        min = std::any_cast<double>(arguments[0]);
+    } else if(arguments[0].type() == typeid(long long)) {
+        min = (double)std::any_cast<long long>(arguments[0]);
+    } else {
+        throw std::runtime_error("O primeiro argumento da função 'aleatorio' deve ser numérico.");
+    }
+    
+    double max = 0.0;
+    if(arguments[1].type() == typeid(double)) {
+        max = std::any_cast<double>(arguments[1]);
+    } else if(arguments[1].type() == typeid(long long)) {
+        max = (double)std::any_cast<long long>(arguments[1]);
+    } else {
+        throw std::runtime_error("O segundo argumento da função 'aleatorio' deve ser numérico.");
+    }
+
+    if(min > max) {
+        throw std::runtime_error("O início do intervalo da função 'aleatorio' deve ser menor ou igual ao fim do intervalo.");
+    }
+
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_real_distribution<> dis(min, max + 0.1);
+    double result = dis(gen);
+    if(result > max) result = max;
+    
+    return result;
 }

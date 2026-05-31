@@ -329,6 +329,7 @@ Interpreter::Interpreter() {
     environment->define("log", std::shared_ptr<PortalgCallable>(std::make_shared<NativeLog>()), true, {{TokenType::KW_REAL, "", 0}});
     environment->define("arredonda_cima", std::shared_ptr<PortalgCallable>(std::make_shared<NativeArredondaCima>()), true, {{TokenType::KW_REAL, "", 0}});
     environment->define("arredonda_baixo", std::shared_ptr<PortalgCallable>(std::make_shared<NativeArredondaBaixo>()), true, {{TokenType::KW_REAL, "", 0}});
+    environment->define("aleatorio", std::shared_ptr<PortalgCallable>(std::make_shared<NativeAleatorio>()), true, {{TokenType::KW_REAL, "", 0}});
 }
 
 void Interpreter::resolve(Expr* expr, int depth) {
