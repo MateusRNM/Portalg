@@ -55,3 +55,33 @@ std::any NativeRaiz::call(Interpreter *interpreter, const std::vector<std::any>&
 
     return std::pow(radicand, 1.0 / (double)degree);
 }
+
+std::any NativeLog::call(Interpreter *interpreter, const std::vector<std::any>& arguments) {
+    double logaritm = 0.0;
+    if(arguments[0].type() == typeid(double)) {
+        logaritm = std::any_cast<double>(arguments[0]);
+    } else if(arguments[0].type() == typeid(long long)) {
+        logaritm = (double)std::any_cast<long long>(arguments[0]);
+    } else {
+        throw std::runtime_error("O logaritmando da função 'log' deve ser numérico.");
+    }
+
+    if(logaritm <= 0) {
+        throw std::runtime_error("O logaritmando da função 'log' deve ser um número positivo.");
+    }
+
+    double base = 0.0;
+    if(arguments[1].type() == typeid(double)) {
+        base = std::any_cast<double>(arguments[1]);
+    } else if(arguments[1].type() == typeid(long long)) {
+        base = (double)std::any_cast<long long>(arguments[1]);
+    } else {
+        throw std::runtime_error("A base da função 'log' deve ser numérica.");
+    }
+
+    if(base <= 0 || base == 1) {
+        throw std::runtime_error("A base da função 'log' deve ser um número positivo diferente de 1.");
+    }
+
+    return std::log(logaritm) / std::log(base);
+}

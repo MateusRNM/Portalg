@@ -31,3 +31,8 @@ struct NativeRaiz : public PortalgCallable {
     int arity() override { return -1; };
     std::any call(Interpreter *interpreter, const std::vector<std::any> &arguments) override;
 };
+
+struct NativeLog : public PortalgCallable {
+    int arity() override { return 2; };
+    std::any call(Interpreter *interpreter, const std::vector<std::any> &arguments) override;
+};

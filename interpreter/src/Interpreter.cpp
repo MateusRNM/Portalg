@@ -326,6 +326,7 @@ Interpreter::Interpreter() {
     environment->define("escreval", std::shared_ptr<PortalgCallable>(std::make_shared<NativeEscreval>()), true, {{TokenType::KW_VOID, "", 0}});
     environment->define("leia", std::shared_ptr<PortalgCallable>(std::make_shared<NativeLeia>()), true, {{TokenType::KW_TEXT, "", 0}});
     environment->define("raiz", std::shared_ptr<PortalgCallable>(std::make_shared<NativeRaiz>()), true, {{TokenType::KW_REAL, "", 0}});
+    environment->define("log", std::shared_ptr<PortalgCallable>(std::make_shared<NativeLog>()), true, {{TokenType::KW_REAL, "", 0}});
 }
 
 void Interpreter::resolve(Expr* expr, int depth) {
@@ -380,6 +381,8 @@ void Interpreter::interpret(const std::vector<std::unique_ptr<Stmt>>& statements
         }
     } catch (const RuntimeError& error) {
         std::cerr << "Erro de Execução (Linha " << error.token.line << "): " << error.what() << "\n";
+    } catch (const std::runtime_error& error) {
+        std::cerr << "Erro de Execução: " << error.what() << "\n";
     }
 }
 
