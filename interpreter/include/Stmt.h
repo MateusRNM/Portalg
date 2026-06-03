@@ -31,6 +31,7 @@ public:
 
 class Stmt {
 public:
+    int line = 0;
     virtual void accept(StmtVisitor* visitor) = 0;
     virtual ~Stmt() = default;
 };

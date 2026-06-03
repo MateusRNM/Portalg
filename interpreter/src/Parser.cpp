@@ -285,10 +285,14 @@ std::unique_ptr<Expr> Parser::assignment() {
 }
 
 std::unique_ptr<Stmt> Parser::exprStmt() {
-    return std::make_unique<ExpressionStmt>(std::move(expression()));
+    Token firstToken = peek();
+    auto stmt = std::make_unique<ExpressionStmt>(std::move(expression()));
+    stmt->line = firstToken.line;
+    return stmt;
 }
 
 std::unique_ptr<Stmt> Parser::block() {
+    Token openBrace = previous();
     std::vector<std::unique_ptr<Stmt>> statements;
     while(!isAtEnd() && !check(TokenType::RIGHT_BRACE)) {
         if(match({TokenType::NEWLINE, TokenType::SEMICOLON})) continue;
@@ -298,7 +302,9 @@ std::unique_ptr<Stmt> Parser::block() {
         }
     }
     consume(TokenType::RIGHT_BRACE, "Esperado chave de fechamento '}'");
-    return std::make_unique<BlockStmt>(std::move(statements));
+    auto stmt = std::make_unique<BlockStmt>(std::move(statements));
+    stmt->line = openBrace.line;
+    return stmt;
 }
 
 std::unique_ptr<Stmt> Parser::ifStmt() {
@@ -319,7 +325,9 @@ std::unique_ptr<Stmt> Parser::ifStmt() {
             elseBranch = block();
         }
     }
-    return std::make_unique<IfStmt>(std::move(condition), std::move(thenBranch), std::move(elseBranch), ifToken);
+    auto stmt = std::make_unique<IfStmt>(std::move(condition), std::move(thenBranch), std::move(elseBranch), ifToken);
+    stmt->line = ifToken.line;
+    return stmt;
 }
 
 std::unique_ptr<Stmt> Parser::whileStmt() {
@@ -330,7 +338,9 @@ std::unique_ptr<Stmt> Parser::whileStmt() {
 
     consume(TokenType::LEFT_BRACE, "Esperado '{' após o 'enquanto'");
     std::unique_ptr<Stmt> body = block();
-    return std::make_unique<WhileStmt>(std::move(condition), std::move(body), keyword);
+    auto stmt = std::make_unique<WhileStmt>(std::move(condition), std::move(body), keyword);
+    stmt->line = keyword.line;
+    return stmt;
 }
 
 std::unique_ptr<Stmt> Parser::forStmt() {
@@ -366,7 +376,9 @@ std::unique_ptr<Stmt> Parser::forStmt() {
     consume(TokenType::LEFT_BRACE, "Esperado '{' após o 'para'");
     std::unique_ptr<Stmt> body = block();
 
-    return std::make_unique<ForStmt>(std::move(initializer), std::move(condition), std::move(increment), std::move(body), keyword);
+    auto stmt = std::make_unique<ForStmt>(std::move(initializer), std::move(condition), std::move(increment), std::move(body), keyword);
+    stmt->line = keyword.line;
+    return stmt;
 }
 
 std::unique_ptr<Stmt> Parser::returnStmt() {
@@ -377,15 +389,23 @@ std::unique_ptr<Stmt> Parser::returnStmt() {
     } else {
         value = expression();
     }
-    return std::make_unique<ReturnStmt>(keyword, std::move(value));
+    auto stmt = std::make_unique<ReturnStmt>(keyword, std::move(value));
+    stmt->line = keyword.line;
+    return stmt;
 }
 
 std::unique_ptr<Stmt> Parser::breakStmt() {
-    return std::make_unique<BreakStmt>(previous());
+    Token keyword = previous();
+    auto stmt = std::make_unique<BreakStmt>(keyword);
+    stmt->line = keyword.line;
+    return stmt;
 }
 
 std::unique_ptr<Stmt> Parser::continueStmt() {
-    return std::make_unique<ContinueStmt>(previous());
+    Token keyword = previous();
+    auto stmt = std::make_unique<ContinueStmt>(keyword);
+    stmt->line = keyword.line;
+    return stmt;
 }
 
 CaseClause Parser::caseClause() {
@@ -410,6 +430,7 @@ std::vector<std::unique_ptr<Stmt>> Parser::defaultClause() {
 }
 
 std::unique_ptr<Stmt> Parser::switchStmt() {
+    Token switchToken = previous();
     consume(TokenType::LEFT_PAREN, "Esperado '(' após o 'escolha'");
     std::unique_ptr<Expr> target = expression();
     consume(TokenType::RIGHT_PAREN, "Esperado ')' após o 'escolha'");
@@ -427,7 +448,9 @@ std::unique_ptr<Stmt> Parser::switchStmt() {
     }
 
     consume(TokenType::RIGHT_BRACE, "Esperado '}' após o fim dos casos.");
-    return std::make_unique<SwitchStmt>(std::move(target), std::move(cases));
+    auto stmt = std::make_unique<SwitchStmt>(std::move(target), std::move(cases));
+    stmt->line = switchToken.line;
+    return stmt;
 }
 
 std::unique_ptr<Stmt> Parser::statement() {
@@ -464,7 +487,7 @@ std::vector<Token> Parser::type() {
 
 std::vector<std::unique_ptr<Stmt>> Parser::constDecl() {
     std::vector<std::unique_ptr<Stmt>> declarations;
-    consume(TokenType::KW_CONST, "Esperado 'constante' no início da declaração de uma constante.");
+    Token keyword = previous();
     std::vector<Token> declType = type();
     
     auto parseConstInit = [&]() -> std::unique_ptr<Expr> {
@@ -481,11 +504,15 @@ std::vector<std::unique_ptr<Stmt>> Parser::constDecl() {
     };
 
     Token name = consume(TokenType::IDENTIFIER, "Nome da constante esperado.");
-    declarations.emplace_back(std::make_unique<VarDeclStmt>(declType, name, true, parseConstInit()));
+    auto stmt = std::make_unique<VarDeclStmt>(declType, name, true, parseConstInit());
+    stmt->line = keyword.line;
+    declarations.emplace_back(std::move(stmt));
     
     while(match({TokenType::COMMA})) {
         Token nextName = consume(TokenType::IDENTIFIER, "Nome da constante esperado.");
-        declarations.emplace_back(std::make_unique<VarDeclStmt>(declType, nextName, true, parseConstInit()));
+        auto stmtNext = std::make_unique<VarDeclStmt>(declType, nextName, true, parseConstInit());
+        stmtNext->line = keyword.line;
+        declarations.emplace_back(std::move(stmtNext));
     }
     
     return declarations;
@@ -493,6 +520,7 @@ std::vector<std::unique_ptr<Stmt>> Parser::constDecl() {
 
 std::vector<std::unique_ptr<Stmt>> Parser::varDecl(std::vector<Token> declType, Token name) {
     std::vector<std::unique_ptr<Stmt>> declarations;
+    int line = name.line;
 
     auto parseVarInit = [&]() -> std::unique_ptr<Expr> {
         if(match({TokenType::EQUAL})) {
@@ -522,11 +550,15 @@ std::vector<std::unique_ptr<Stmt>> Parser::varDecl(std::vector<Token> declType, 
         }
     };
 
-    declarations.emplace_back(std::make_unique<VarDeclStmt>(declType, name, false, parseVarInit()));
+    auto stmt = std::make_unique<VarDeclStmt>(declType, name, false, parseVarInit());
+    stmt->line = line;
+    declarations.emplace_back(std::move(stmt));
 
     while(match({TokenType::COMMA})) {
         Token nextName = consume(TokenType::IDENTIFIER, "Nome da variável esperado.");
-        declarations.emplace_back(std::make_unique<VarDeclStmt>(declType, nextName, false, parseVarInit()));
+        auto stmtNext = std::make_unique<VarDeclStmt>(declType, nextName, false, parseVarInit());
+        stmtNext->line = line;
+        declarations.emplace_back(std::move(stmtNext));
     }
 
     return declarations;
@@ -560,12 +592,15 @@ std::unique_ptr<Stmt> Parser::funcDecl(std::vector<Token> declType, Token name) 
     }
 
     consume(TokenType::RIGHT_BRACE, "Esperado '}' no final do corpo da função.");
-    return std::make_unique<FunctionStmt>(declType, name, std::move(params), std::move(body));
+    auto stmt = std::make_unique<FunctionStmt>(declType, name, std::move(params), std::move(body));
+    stmt->line = name.line;
+    return stmt;
 }
 
 std::vector<std::unique_ptr<Stmt>> Parser::declaration() {
     std::vector<std::unique_ptr<Stmt>> declarations;
     if(check(TokenType::KW_CONST)) {
+        advance();
         for(auto& st : constDecl()) {
             declarations.emplace_back(std::move(st));
         }

@@ -435,7 +435,7 @@ void Interpreter::execute(Stmt* stmt) {
             stateJson.push_back(scopeJson);
         }
 
-        int actualLine = 0;
+        int actualLine = stmt->line;
         std::string jsonString = stateJson.dump();
 
         #ifdef __EMSCRIPTEN__
