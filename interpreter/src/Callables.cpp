@@ -3,25 +3,75 @@
 #include <iostream>
 #include <random>
 
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#include <cstdlib>
+
+EM_JS(void, write_in_terminal, (const char* text), {
+    postMessage({ type: "WRITE", text: UTF8ToString(text) });
+});
+
+EM_ASYNC_JS(char*, input_in_terminal, (), {
+    return await new Promise((resolve) => {
+        postMessage({ type: "INPUT" });
+
+        const listener = (event) => {
+            if(event.data.command === "INPUT_RESPONSE") {
+                self.removeEventListener("message", listener);
+                const text = event.data.payload.text;
+                const byteCount = lengthBytesUTF8(text) + 1;
+                const pointer = _malloc(byteCount);
+                stringToUTF8(text, pointer, byteCount);
+                resolve(pointer);
+            }
+        };
+        self.addEventListener("message", listener);
+    });
+});
+
+#endif
+
 std::any NativeEscreva::call(Interpreter *interpreter, const std::vector<std::any> &arguments) {
     for (const auto &arg : arguments) {
-        std::cout << interpreter->stringify(arg);
+        std::string text = interpreter->stringify(arg);
+        #ifdef __EMSCRIPTEN__
+            write_in_terminal(text.c_str());
+        #else
+            std::cout << text;
+        #endif
     }
     return {};
 }
 
 std::any NativeEscreval::call(Interpreter *interpreter, const std::vector<std::any> &arguments) {
     for (const auto &arg : arguments) {
-        std::cout << interpreter->stringify(arg);
+        std::string text = interpreter->stringify(arg);
+        #ifdef __EMSCRIPTEN__
+            write_in_terminal(text.c_str());
+        #else
+            std::cout << text;
+        #endif
     }
-    std::cout << '\n';
+
+    #ifdef __EMSCRIPTEN__
+        write_in_terminal("\n");
+    #else
+        std::cout << '\n';
+    #endif
     return {};
 }
 
 std::any NativeLeia::call(Interpreter *interpreter, const std::vector<std::any> &arguments) {
-    std::string input;
-    std::getline(std::cin, input);
-    return input;
+    #ifdef __EMSCRIPTEN__
+        char* pointerText = input_in_terminal();
+        std::string input(pointerText);
+        free(pointerText);
+        return input;
+    #else
+        std::string input;
+        std::getline(std::cin, input);
+        return input;
+    #endif
 }
 
 std::any NativeRaiz::call(Interpreter *interpreter, const std::vector<std::any>& arguments) {

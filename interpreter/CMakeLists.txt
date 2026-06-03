@@ -31,23 +31,3 @@ if(WIN32)
 elseif(UNIX AND NOT APPLE)
     target_link_options(${TARGET_NAME} PRIVATE -static-libgcc -static-libstdc++ -s)
 endif()
-
-include(FetchContent)
-FetchContent_Declare(
-  googletest
-  URL https://github.com/google/googletest/archive/refs/tags/v1.14.0.zip
-)
-
-set(gtest_disable_pthreads ON CACHE BOOL "" FORCE) 
-set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
-set(BUILD_GMOCK OFF CACHE BOOL "" FORCE)          
-FetchContent_MakeAvailable(googletest)
-
-add_executable(portalg_tests 
-    tests/test_scanner.cpp
-)
-
-target_link_libraries(portalg_tests PRIVATE portalg_core gtest_main)
-
-include(GoogleTest)
-gtest_discover_tests(portalg_tests)

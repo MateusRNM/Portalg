@@ -39,6 +39,7 @@ public:
     Interpreter();
 
     std::unordered_map<Expr*, int> locals;
+    bool debugModeOn = false;
 
     void resolve(Expr* expr, int depth);
 

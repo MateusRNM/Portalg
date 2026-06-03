@@ -62,4 +62,5 @@ class Environment : public std::enable_shared_from_this<Environment> {
         std::vector<Token> getType(Token name);
         void assign(Token name, std::any value);
         std::unordered_map<std::string, VariableData> getLocals() const;
+        std::vector<std::unordered_map<std::string, VariableData>> getAllScopes() const;
 };

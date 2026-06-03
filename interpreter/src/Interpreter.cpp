@@ -1,4 +1,30 @@
 #include "Interpreter.h"
+#include "json.hpp"
+
+using json = nlohmann::json;
+
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+
+EM_ASYNC_JS(void, debugger_pause, (const char* json_state, int actual_line), {
+    return await new Promise((resolve) => {
+        postMessage({
+            type: "DEBUG_STATE",
+            state: UTF8ToString(json_state),
+            line: actual_line
+        });
+
+        const listener = (event) => {
+            if(event.data.command === "DEBUG_NEXT_STEP") {
+                self.removeEventListener("message", listener);
+                resolve();
+            }
+        };
+        self.addEventListener("message", listener);
+    });
+});
+
+#endif
 
 std::any Interpreter::evaluate(Expr* expr) {
     return expr->accept(this);
@@ -378,18 +404,44 @@ void Interpreter::interpret(const std::vector<std::unique_ptr<Stmt>>& statements
     loopDepth = 0;
     switchDepth = 0;
     functionDepth = 0;
-    try {
-        for(const auto& statement : statements) {
-            execute(statement.get());
-        }
-    } catch (const RuntimeError& error) {
-        std::cerr << "Erro de Execução (Linha " << error.token.line << "): " << error.what() << "\n";
-    } catch (const std::runtime_error& error) {
-        std::cerr << "Erro de Execução: " << error.what() << "\n";
+    for(const auto& statement : statements) {
+        execute(statement.get());
     }
 }
 
 void Interpreter::execute(Stmt* stmt) {
+    if(debugModeOn) {
+        json stateJson = json::array();
+        auto scopes = environment->getAllScopes();
+
+        for(const auto& scope : scopes) {
+            json scopeJson;
+            for(const auto& pair : scope) {
+                std::any val = pair.second.value;
+
+                if(val.type() == typeid(std::shared_ptr<PortalgCallable>)) {
+                    auto callable = std::any_cast<std::shared_ptr<PortalgCallable>>(val);
+                    if(!dynamic_cast<PortalgUserFunction*>(callable.get())) {
+                        continue;
+                    }
+                }
+
+                try {
+                    scopeJson[pair.first] = stringify(val);
+                } catch(...) {
+                    scopeJson[pair.first] = "<indefinido>";
+                }
+            }
+            stateJson.push_back(scopeJson);
+        }
+
+        int actualLine = 0;
+        std::string jsonString = stateJson.dump();
+
+        #ifdef __EMSCRIPTEN__
+        debugger_pause(jsonString.c_str(), actualLine);
+        #endif
+    }
     stmt->accept(this);
 }
 

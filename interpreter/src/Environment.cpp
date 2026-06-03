@@ -79,3 +79,15 @@ void Environment::assign(Token name, std::any value) {
 std::unordered_map<std::string, VariableData> Environment::getLocals() const {
     return values;
 }
+
+std::vector<std::unordered_map<std::string, VariableData>> Environment::getAllScopes() const {
+    std::vector<std::unordered_map<std::string, VariableData>> scopes;
+    const Environment* current = this;
+
+    while(current != nullptr) {
+        scopes.push_back(current->getLocals());
+        current = current->enclosing.get();
+    }
+    
+    return scopes;
+}
