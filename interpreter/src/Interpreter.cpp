@@ -384,6 +384,8 @@ std::any Interpreter::PortalgUserFunction::call(Interpreter* interpreter, const 
         std::any retVal = e.value;
         if(!(declaration->returnType[0].type == TokenType::KW_VOID)) {
             interpreter->enforceType(declaration->returnType, retVal, declaration->name);
+        } else if(retVal.has_value()) {
+            throw RuntimeError(declaration->name, "A função é do tipo vazio, mas retornou um valor.");
         }
         return retVal;
     } catch(...) {
