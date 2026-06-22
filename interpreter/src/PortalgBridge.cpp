@@ -10,6 +10,15 @@ struct ExecutionResult {
     int lineError;
 };
 
+void report_portalg(ErrorHandler& errorHandler, ExecutionResult& result) {
+    std::vector<Error> errors = errorHandler.get_errors();
+    result.success = false;
+    for(size_t i = 0; i < errors.size(); i++) {
+        result.message += "[ERRO " + std::to_string(i+1) + " Linha " + std::to_string(errors[i].line) + " | Coluna " + std::to_string(errors[i].column )+ "] " + errors[i].message + "\n";
+    }
+    result.lineError = errors[0].line;
+}
+
 #ifdef __EMSCRIPTEN__
 
 #include <emscripten/bind.h>
@@ -24,8 +33,18 @@ ExecutionResult runCode(std::string code, bool debugMode) {
         Scanner scanner(code, errorHandler);
         std::vector<Token> tokens = scanner.scanTokens();
 
+        if(errorHandler.haveErrors()) {
+            report_portalg(errorHandler, result);
+            return result;
+        }
+
         Parser parser(tokens, errorHandler);
         std::vector<std::unique_ptr<Stmt>> ast = parser.parse();
+
+        if(errorHandler.haveErrors()) {
+            report_portalg(errorHandler, result);
+            return result;
+        }
 
         Interpreter interpreter;
         interpreter.debugModeOn = debugMode;

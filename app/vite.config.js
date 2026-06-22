@@ -8,6 +8,9 @@ export default defineConfig({
         exclude: ['interpreter/portalg.js']
     },
     server: {
+        port: 5173,
+        strictPort: true,
+        host: true,
         fs: {
             strict: false
         }

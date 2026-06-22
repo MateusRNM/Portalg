@@ -8,6 +8,10 @@ void ErrorHandler::report() {
     }
 }
 
+std::vector<Error> ErrorHandler::get_errors() {
+    return errors;
+}
+
 bool ErrorHandler::haveErrors() {
     return !errors.empty();
 }

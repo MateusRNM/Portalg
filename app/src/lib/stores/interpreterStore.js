@@ -10,7 +10,7 @@ let worker;
 
 export function initWorker() {
     if (typeof window !== 'undefined' && !worker) {
-        worker = new Worker(new URL('../portalgWorker.js', import.meta.url), { type: 'module' });
+        worker = new Worker(new URL('../workers/portalgWorker.js', import.meta.url), { type: 'module' });
 
         worker.onmessage = (event) => {
             const data = event.data;
@@ -27,7 +27,7 @@ export function initWorker() {
                     debugLine.set(data.line);
                     break;
                 case 'EXECUTION_ERROR':
-                    terminalOutput.update(text => text + `\n[Erro Linha ${data.line}]: ${data.error_message}`);
+                    terminalOutput.update(text => text + `\n${data.error_message}`);
                     isRunning.set(false);
                     break;
                 case 'EXECUTION_FINISHED':

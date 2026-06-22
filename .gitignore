@@ -1,4 +1,5 @@
 app/node_modules
 interpreter/build
 interpreter/teste.portalg
+interpreter/compilation_commands.txt
 .vscode
