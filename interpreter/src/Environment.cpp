@@ -8,6 +8,14 @@ Environment* Environment::ancestor(int distance) {
     return environment;
 }
 
+std::shared_ptr<Environment> Environment::ancestorShared(int distance) {
+    std::shared_ptr<Environment> environment = shared_from_this();
+    for(int i = 0; i < distance; i++) {
+        environment = environment->enclosing;
+    }
+    return environment;
+}
+
 Environment::Environment() : enclosing(nullptr) {}
 
 Environment::Environment(std::shared_ptr<Environment> enclosing) : enclosing(enclosing) {}

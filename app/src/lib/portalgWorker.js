@@ -8,18 +8,17 @@ async function initInterpreter() {
 
 initInterpreter();
 
-self.onmessage = (event) => {
+self.onmessage = async (event) => {
     const { command, payload } = event.data;
 
     if(!interpreter) return;
 
+    let result;
     switch(command) {
         case 'RUN_CODE':
-            const { code, debugMode } = payload;
-            const result = interpreter.runCode(code, debugMode);
-
+            result = await interpreter.runCode(payload.code, payload.debugMode);
             if(!result.success) {
-                postMessage({ type: 'ERROR', line: result.lineError, message: result.messsage });
+                postMessage({ type: 'EXECUTION_ERROR', line: result.lineError, error_message: result.messsage });
             } else {
                 postMessage({ type: 'EXECUTION_FINISHED' });
             }

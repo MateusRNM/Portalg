@@ -14,6 +14,11 @@ struct TypedArray {
     std::shared_ptr<std::vector<std::any>> elements;
 };
 
+struct PortalgRef {
+    std::shared_ptr<Environment> env;
+    std::string name;
+};
+
 class Interpreter : public ExprVisitor, public StmtVisitor {
 private:
     std::shared_ptr<Environment> environment = std::make_shared<Environment>();

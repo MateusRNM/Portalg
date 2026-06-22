@@ -1,9 +1,10 @@
-import { writable } from 'svelte/store';
+import { writable, get } from 'svelte/store';
 
 export const terminalOutput = writable("");
 export const isWaitingInput = writable(false);
 export const debugState = writable(null); 
 export const debugLine = writable(0);
+export const isRunning = writable(false);
 
 let worker;
 
@@ -26,7 +27,11 @@ export function initWorker() {
                     debugLine.set(data.line);
                     break;
                 case 'EXECUTION_ERROR':
-                    terminalOutput.update(text => text + `\n[Erro Linha ${data.line}]: ${data.message}`);
+                    terminalOutput.update(text => text + `\n[Erro Linha ${data.line}]: ${data.error_message}`);
+                    isRunning.set(false);
+                    break;
+                case 'EXECUTION_FINISHED':
+                    isRunning.set(false);
                     break;
             }
         };
@@ -34,6 +39,8 @@ export function initWorker() {
 }
 
 export function executeCode(code, debugMode) {
+    if(get(isRunning)) return;
+    isRunning.set(true);
     terminalOutput.set(""); 
     debugState.set(null);
     worker.postMessage({ command: 'RUN_CODE', payload: { code, debugMode } });
@@ -47,4 +54,16 @@ export function sendInputResponse(text) {
 
 export function sendNextStep() {
     worker.postMessage({ command: 'DEBUG_NEXT_STEP' });
+}
+
+export function stopExecution() {
+    if (worker) {
+        worker.terminate();
+        worker = null;   
+        isRunning.set(false);
+        isWaitingInput.set(false);
+        debugState.set(null);
+        terminalOutput.set("");
+        initWorker();
+    }
 }

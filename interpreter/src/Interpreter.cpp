@@ -372,7 +372,13 @@ std::any Interpreter::PortalgUserFunction::call(Interpreter* interpreter, const 
     std::shared_ptr<Environment> env = std::make_shared<Environment>(closure);
     for(size_t i = 0; i < declaration->params.size(); i++) {
         std::any arg = arguments[i];
-        interpreter->enforceType(declaration->params[i].type, arg, declaration->params[i].name);
+        if(arg.type() == typeid(PortalgRef)) {
+            PortalgRef ref = std::any_cast<PortalgRef>(arg);
+            std::any realVal = ref.env->get(Token{TokenType::IDENTIFIER, ref.name, 0});
+            interpreter->enforceType(declaration->params[i].type, realVal, declaration->params[i].name);
+        } else {
+            interpreter->enforceType(declaration->params[i].type, arg, declaration->params[i].name);
+        }
         env->define(declaration->params[i].name.lexeme, arg, false, declaration->params[i].type);
     }
     interpreter->functionDepth++;
@@ -529,13 +535,22 @@ std::any Interpreter::visitPrefixPostfixExpr(PrefixPostfixExpr* expr) {
         auto it = locals.find(varExpr);
         bool isLocal = it != locals.end();
         int distance = isLocal ? it->second : 0;
-        std::any currentValue = isLocal ? environment->getAt(distance, varExpr->name.lexeme) : environment->get(varExpr->name);
+
+        std::any targetObj = isLocal ? environment->getAt(distance, varExpr->name.lexeme) : environment->get(varExpr->name);
+        std::any currentValue = targetObj;
+        if(targetObj.type() == typeid(PortalgRef)) {
+            PortalgRef ref = std::any_cast<PortalgRef>(targetObj);
+            currentValue = ref.env->get({TokenType::IDENTIFIER, ref.name, 0});
+        }
+
         std::any newValue = applyIncrementDecrement(currentValue, expr->op.type, expr->op);
 
-        if(isLocal) {
-            environment->assignAt(distance, varExpr->name, newValue);
+        if(targetObj.type() == typeid(PortalgRef)) {
+            PortalgRef ref = std::any_cast<PortalgRef>(targetObj);
+            ref.env->assign(Token{TokenType::IDENTIFIER, ref.name, 0}, newValue);
         } else {
-           environment->assign(varExpr->name, newValue);
+            if(isLocal) environment->assignAt(distance, varExpr->name, newValue);
+            else environment->assign(varExpr->name, newValue);
         }
 
         if(expr->isPrefix) {
@@ -594,12 +609,13 @@ std::any Interpreter::visitPrefixPostfixExpr(PrefixPostfixExpr* expr) {
 
 std::any Interpreter::visitVariableExpr(VariableExpr* expr) {
     auto it = locals.find(expr);
-    if(it != locals.end()) {
-        int distance = it->second;
-        return environment->getAt(distance, expr->name.lexeme);
-    } else {
-        return environment->get(expr->name);
+    int distance = (it != locals.end()) ? it->second : 0;
+    std:: any val = (it != locals.end()) ? environment->getAt(distance, expr->name.lexeme) : environment->get(expr->name);
+    if(val.type() == typeid(PortalgRef)) {
+        PortalgRef ref = std::any_cast<PortalgRef>(val);
+        return ref.env->get(Token{TokenType::IDENTIFIER, ref.name, 0});
     }
+    return val;
 }
 
 std::any Interpreter::visitLogicalExpr(LogicalExpr* expr) {
@@ -653,18 +669,27 @@ std::any Interpreter::visitAssignExpr(AssignExpr* expr) {
     bool isLocal = it != locals.end();
     int distance = isLocal ? it->second : 0;
 
+    std::any targetObj = isLocal ? environment->getAt(distance, expr->name.lexeme) : environment->get(expr->name);
+
+    std::any actualValueForMath = targetObj;
+    if(targetObj.type() == typeid(PortalgRef)) {
+        PortalgRef ref = std::any_cast<PortalgRef>(targetObj);
+        actualValueForMath = ref.env->get(Token{TokenType::IDENTIFIER, ref.name, 0});
+    }
+
     if(expr->op.type != TokenType::EQUAL) {
-        std::any currentValue = isLocal ? environment->getAt(distance, expr->name.lexeme) : environment->get(expr->name);
-        value = calculateMathAndRelationals(currentValue, expr->op, value);
+        value = calculateMathAndRelationals(actualValueForMath, expr->op, value);
     }
 
     std::vector<Token> varType = isLocal ? environment->getTypeAt(distance, expr->name.lexeme) : environment->getType(expr->name);
     enforceType(varType, value, expr->name);
 
-    if(isLocal) {
-        environment->assignAt(distance, expr->name, value);
+    if(targetObj.type() == typeid(PortalgRef)) {
+        PortalgRef ref = std::any_cast<PortalgRef>(targetObj);
+        ref.env->assign(Token{TokenType::IDENTIFIER, ref.name, 0}, value);
     } else {
-        environment->assign(expr->name, value);
+        if(isLocal) environment->assignAt(distance, expr->name, value);
+        else environment->assign(expr->name, value);
     }
 
     return value;
@@ -673,16 +698,31 @@ std::any Interpreter::visitAssignExpr(AssignExpr* expr) {
 std::any Interpreter::visitCallExpr(CallExpr* expr) {
     std::any callee = evaluate(expr->callee.get());
 
-    std::vector<std::any> arguments;
-    for(const auto& argExpr : expr->arguments) {
-        arguments.emplace_back(evaluate(argExpr.get()));
-    }
-
     if(callee.type() != typeid(std::shared_ptr<PortalgCallable>)) {
         throw RuntimeError(expr->openToken, "Só é permitido chamar funções e métodos.");
     }
 
     std::shared_ptr<PortalgCallable> function = std::any_cast<std::shared_ptr<PortalgCallable>>(callee);
+
+    auto userFunc = std::dynamic_pointer_cast<PortalgUserFunction>(function);
+
+    std::vector<std::any> arguments;
+    for(size_t i = 0; i < expr->arguments.size(); i++) {
+        if(userFunc && userFunc->declaration->params[i].isReference) {
+            VariableExpr* varExpr = dynamic_cast<VariableExpr*>(expr->arguments[i].get());
+            if(!varExpr) {
+                throw RuntimeError(expr->openToken, "Parâmetros por referência exigem variáveis puras (não é possível passar valores diretos ou posições de vetores).");
+            }
+            auto it = locals.find(varExpr);
+            bool isLocal = it != locals.end();
+            int distance = isLocal ? it->second : 0;
+            std::shared_ptr<Environment> targetEnv = isLocal ? environment->ancestorShared(distance) : environment;
+            arguments.emplace_back(PortalgRef{targetEnv, varExpr->name.lexeme});
+        } else {
+            arguments.emplace_back(evaluate(expr->arguments[i].get()));
+        }
+    }
+
 
     if(function->arity() != -1 && arguments.size() != function->arity()) {
         throw RuntimeError(expr->openToken, "A função esperava " + std::to_string(function->arity()) + " argumentos, mas recebeu " + std::to_string(arguments.size()) + ".");

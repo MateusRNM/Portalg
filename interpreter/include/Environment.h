@@ -54,6 +54,7 @@ class Environment : public std::enable_shared_from_this<Environment> {
         Environment();
         Environment(std::shared_ptr<Environment> enclosing);
 
+        std::shared_ptr<Environment> ancestorShared(int distance);
         void define(const std::string& name, std::any value, bool isConst, std::vector<Token> type);
         std::any getAt(int distance, const std::string& name);
         void assignAt(int distance, Token name, std::any value);

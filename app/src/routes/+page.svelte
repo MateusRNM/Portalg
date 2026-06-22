@@ -1,8 +1,8 @@
 <script>
     import { onMount } from 'svelte';
     import { 
-        initWorker, executeCode, sendInputResponse, sendNextStep, 
-        terminalOutput, isWaitingInput, debugState, debugLine 
+        initWorker, executeCode, sendInputResponse, sendNextStep, stopExecution,
+        terminalOutput, isWaitingInput, debugState, debugLine, isRunning 
     } from '$lib/stores/interpreterStore';
 
     let code = $state("inteiro x = 5\nescreval(\"O valor é: \", x)\nleia()");
@@ -29,7 +29,15 @@
         <label>
             <input type="checkbox" bind:checked={isDebugMode}> Modo Debug (Passo a Passo)
         </label>
-        <button onclick={() => executeCode(code, isDebugMode)}>Executar</button>
+        {#if !$isRunning}
+            <button onclick={() => executeCode(code, isDebugMode)}>
+                ▶ Executar
+            </button>
+        {:else}
+            <button onclick={stopExecution} style="background: red; color: white;">
+                ⏹ Parar
+            </button>
+        {/if}
     </div>
 
     {#if $debugState}
