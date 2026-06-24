@@ -533,7 +533,7 @@ std::vector<std::unique_ptr<Stmt>> Parser::varDecl(std::vector<Token> declType, 
             return std::make_unique<InstantiateExpr>(declType, std::move(sizeExpr), std::move(initExpr));
         } else {
             if(declType.size() == 1) {
-                std::any defaultValue;
+                PortalgValue defaultValue;
                 if(declType[0].type == TokenType::KW_INTEGER || declType[0].type == TokenType::KW_REAL) {
                     defaultValue = declType[0].type == TokenType::KW_INTEGER ? 0LL : 0.0;
                 } else if(declType[0].type == TokenType::KW_LOGIC) {

@@ -1,4 +1,5 @@
 import { writable, get } from 'svelte/store';
+import { browser } from '$app/environment';
 
 export const terminalOutput = writable("");
 export const isWaitingInput = writable(false);
@@ -9,7 +10,7 @@ export const isRunning = writable(false);
 let worker;
 
 export function initWorker() {
-    if (typeof window !== 'undefined' && !worker) {
+    if (browser && !worker) {
         worker = new Worker(new URL('../workers/portalgWorker.js', import.meta.url), { type: 'module' });
 
         worker.onmessage = (event) => {

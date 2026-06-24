@@ -17,18 +17,17 @@ std::shared_ptr<Environment> Environment::ancestorShared(int distance) {
 }
 
 Environment::Environment() : enclosing(nullptr) {}
-
 Environment::Environment(std::shared_ptr<Environment> enclosing) : enclosing(enclosing) {}
 
-void Environment::define(const std::string& name, std::any value, bool isConst, std::vector<Token> type) {
+void Environment::define(const std::string& name, PortalgValue value, bool isConst, std::vector<Token> type) {
     values[name] = {std::move(value), isConst, type};
 }
 
-std::any Environment::getAt(int distance, const std::string& name) {
+PortalgValue Environment::getAt(int distance, const std::string& name) {
     return ancestor(distance)->values.at(name).value;
 }
 
-void Environment::assignAt(int distance, Token name, std::any value) {
+void Environment::assignAt(int distance, Token name, PortalgValue value) {
     VariableData& varData = ancestor(distance)->values[name.lexeme];
     if(varData.isConst) {
         throw RuntimeError(name, "Tentativa de reatribuição à constante '" + name.lexeme + "'.");
@@ -40,7 +39,7 @@ std::vector<Token> Environment::getTypeAt(int distance, const std::string& name)
     return ancestor(distance)->values.at(name).type;
 }
 
-std::any Environment::get(Token name) {
+PortalgValue Environment::get(Token name) {
     auto it = values.find(name.lexeme);
     if(it != values.end()) {
         return it->second.value;
@@ -66,7 +65,7 @@ std::vector<Token> Environment::getType(Token name) {
     throw RuntimeError(name, "Variável indefinida: '" + name.lexeme + "'.");
 }
 
-void Environment::assign(Token name, std::any value) {
+void Environment::assign(Token name, PortalgValue value) {
     auto it = values.find(name.lexeme);
     if(it != values.end()) {
         if(it->second.isConst) {

@@ -3,21 +3,12 @@
 #include "Stmt.h"
 #include "Environment.h"
 #include "Callables.h"
-#include <any>
+#include "PortalgTypes.h"
 #include <string>
 #include <stdexcept>
 #include <typeinfo>
 #include <cmath>
-
-struct TypedArray {
-    std::shared_ptr<std::vector<Token>> typeTokens;
-    std::shared_ptr<std::vector<std::any>> elements;
-};
-
-struct PortalgRef {
-    std::shared_ptr<Environment> env;
-    std::string name;
-};
+#include <unordered_map>
 
 class Interpreter : public ExprVisitor, public StmtVisitor {
 private:
@@ -26,18 +17,18 @@ private:
     int switchDepth = 0;
     int functionDepth = 0;
 
-    std::any evaluate(Expr* expr);
-    bool isReal(const std::any& operand);
-    bool isInteger(const std::any& operand);
-    double getAsDouble(const std::any& operand);
-    bool isEqual(const std::any& a, const std::any& b);
-    std::any calculateMathAndRelationals(const std::any& left, Token op, const std::any& right);
-    bool matchType(std::any& value, const std::vector<Token>& typeTokens, size_t& index);
+    PortalgValue evaluate(Expr* expr);
+    bool isReal(const PortalgValue& operand);
+    bool isInteger(const PortalgValue& operand);
+    double getAsDouble(const PortalgValue& operand);
+    bool isEqual(const PortalgValue& a, const PortalgValue& b);
+    PortalgValue calculateMathAndRelationals(const PortalgValue& left, Token op, const PortalgValue& right);
+    bool matchType(PortalgValue& value, const std::vector<Token>& typeTokens, size_t& index);
     std::vector<Token> extractSubtype(const std::vector<Token>& fullType);
-    void validateType(const std::vector<Token>& typeTokens, std::any& value, Token errorToken);
-    void enforceType(const std::vector<Token>& typeTokens, std::any& value, Token errorToken);
-    std::any applyIncrementDecrement(const std::any& currentValue, TokenType opType, Token errorToken);
-    std::any cloneValue(const std::any& value);
+    void validateType(const std::vector<Token>& typeTokens, PortalgValue& value, Token errorToken);
+    void enforceType(const std::vector<Token>& typeTokens, PortalgValue& value, Token errorToken);
+    PortalgValue applyIncrementDecrement(const PortalgValue& currentValue, TokenType opType, Token errorToken);
+    PortalgValue cloneValue(const PortalgValue& value);
     void executeBlock(const std::vector<std::unique_ptr<Stmt>>& statements, std::shared_ptr<Environment> innerEnvironment);
 
 public:
@@ -55,29 +46,28 @@ public:
         PortalgUserFunction(FunctionStmt* declaration, std::shared_ptr<Environment> closure);
 
         int arity() override;
-        std::any call(Interpreter* interpreter, const std::vector<std::any>& arguments) override;
+        PortalgValue call(Interpreter* interpreter, const std::vector<PortalgValue>& arguments) override;
     };
 
     void interpret(const std::vector<std::unique_ptr<Stmt>>& statements);
     void execute(Stmt* stmt);
-    std::string stringify(const std::any& operand);
-
-    std::any visitLiteralExpr(LiteralExpr* expr) override;
-    std::any visitBinaryExpr(BinaryExpr* expr) override;
-    std::any visitUnaryExpr(UnaryExpr* expr) override;
-    std::any visitPrefixPostfixExpr(PrefixPostfixExpr* expr) override;
-    std::any visitVariableExpr(VariableExpr* expr) override;
-    std::any visitLogicalExpr(LogicalExpr* expr) override;
-    std::any visitTernaryExpr(TernaryExpr* expr) override;
+    std::string stringify(const PortalgValue& operand);
+    PortalgValue visitLiteralExpr(LiteralExpr* expr) override;
+    PortalgValue visitBinaryExpr(BinaryExpr* expr) override;
+    PortalgValue visitUnaryExpr(UnaryExpr* expr) override;
+    PortalgValue visitPrefixPostfixExpr(PrefixPostfixExpr* expr) override;
+    PortalgValue visitVariableExpr(VariableExpr* expr) override;
+    PortalgValue visitLogicalExpr(LogicalExpr* expr) override;
+    PortalgValue visitTernaryExpr(TernaryExpr* expr) override;
+    PortalgValue visitAssignExpr(AssignExpr* expr) override;
+    PortalgValue visitCallExpr(CallExpr* expr) override;
+    PortalgValue visitMethodCallExpr(MethodCallExpr* expr) override;
+    PortalgValue visitIndexAccessExpr(IndexAccessExpr* expr) override;
+    PortalgValue visitIndexAssignExpr(IndexAssignExpr* expr) override;
+    PortalgValue visitArrayLiteralExpr(ArrayLiteralExpr* expr) override;
+    PortalgValue visitInstantiateExpr(InstantiateExpr* expr) override;
     void visitExpressionStmt(ExpressionStmt* stmt) override;
     void visitVarDeclStmt(VarDeclStmt* stmt) override;
-    std::any visitAssignExpr(AssignExpr* expr) override;
-    std::any visitCallExpr(CallExpr* expr) override;
-    std::any visitMethodCallExpr(MethodCallExpr* expr) override;
-    std::any visitIndexAccessExpr(IndexAccessExpr* expr) override;
-    std::any visitIndexAssignExpr(IndexAssignExpr* expr) override;
-    std::any visitArrayLiteralExpr(ArrayLiteralExpr* expr) override;
-    std::any visitInstantiateExpr(InstantiateExpr* expr) override;
     void visitBlockStmt(BlockStmt* stmt) override;
     void visitIfStmt(IfStmt* stmt) override;
     void visitWhileStmt(WhileStmt* stmt) override;

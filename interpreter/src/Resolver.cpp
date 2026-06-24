@@ -65,7 +65,7 @@ void Resolver::visitVarDeclStmt(VarDeclStmt* stmt) {
     define(stmt->name);
 }
 
-std::any Resolver::visitVariableExpr(VariableExpr* expr) {
+PortalgValue Resolver::visitVariableExpr(VariableExpr* expr) {
     if(!scopes.empty()) {
         auto& scope = scopes.back();
         if(scope.find(expr->name.lexeme) != scope.end() && scope[expr->name.lexeme] == false) {
@@ -73,13 +73,13 @@ std::any Resolver::visitVariableExpr(VariableExpr* expr) {
         }
     }
     resolveLocal(expr, expr->name);
-    return {};
+    return std::monostate{};
 }
 
-std::any Resolver::visitAssignExpr(AssignExpr* expr) {
+PortalgValue Resolver::visitAssignExpr(AssignExpr* expr) {
     resolve(expr->value.get());
     resolveLocal(expr, expr->name);
-    return {};
+    return std::monostate{};
 }
 
 void Resolver::visitFunctionStmt(FunctionStmt* stmt) {
@@ -96,83 +96,83 @@ void Resolver::visitFunctionStmt(FunctionStmt* stmt) {
     endScope();
 }
 
-std::any Resolver::visitLiteralExpr(LiteralExpr* expr) {
-    return {};
+PortalgValue Resolver::visitLiteralExpr(LiteralExpr* expr) {
+    return std::monostate{};
 }
 
-std::any Resolver::visitBinaryExpr(BinaryExpr* expr) {
+PortalgValue Resolver::visitBinaryExpr(BinaryExpr* expr) {
     resolve(expr->left.get());
     resolve(expr->right.get());
-    return {};
+    return std::monostate{};
 }
 
-std::any Resolver::visitUnaryExpr(UnaryExpr* expr) {
+PortalgValue Resolver::visitUnaryExpr(UnaryExpr* expr) {
     resolve(expr->right.get());
-    return {};
+    return std::monostate{};
 }
 
-std::any Resolver::visitPrefixPostfixExpr(PrefixPostfixExpr* expr) {
+PortalgValue Resolver::visitPrefixPostfixExpr(PrefixPostfixExpr* expr) {
     resolve(expr->target.get());
-    return {};
+    return std::monostate{};
 }
 
-std::any Resolver::visitLogicalExpr(LogicalExpr* expr) {
+PortalgValue Resolver::visitLogicalExpr(LogicalExpr* expr) {
     resolve(expr->left.get());
     resolve(expr->right.get());
-    return {};
+    return std::monostate{};
 }
 
-std::any Resolver::visitTernaryExpr(TernaryExpr* expr) {
+PortalgValue Resolver::visitTernaryExpr(TernaryExpr* expr) {
     resolve(expr->condition.get());
     resolve(expr->trueExpr.get());
     resolve(expr->falseExpr.get());
-    return {};
+    return std::monostate{};
 }
 
 void Resolver::visitExpressionStmt(ExpressionStmt* stmt) {
     resolve(stmt->expression.get());
 }
 
-std::any Resolver::visitCallExpr(CallExpr* expr) {
+PortalgValue Resolver::visitCallExpr(CallExpr* expr) {
     resolve(expr->callee.get());
     for(const auto& arg : expr->arguments) {
         resolve(arg.get());
     }
-    return {};
+    return std::monostate{};
 }
 
-std::any Resolver::visitMethodCallExpr(MethodCallExpr* expr) {
+PortalgValue Resolver::visitMethodCallExpr(MethodCallExpr* expr) {
     resolve(expr->object.get());
     for(const auto& arg : expr->arguments) {
         resolve(arg.get());
     }
-    return {};
+    return std::monostate{};
 }
 
-std::any Resolver::visitIndexAccessExpr(IndexAccessExpr* expr) {
+PortalgValue Resolver::visitIndexAccessExpr(IndexAccessExpr* expr) {
     resolve(expr->target.get());
     resolve(expr->index.get());
-    return {};
+    return std::monostate{};
 }
 
-std::any Resolver::visitIndexAssignExpr(IndexAssignExpr* expr) {
+PortalgValue Resolver::visitIndexAssignExpr(IndexAssignExpr* expr) {
     resolve(expr->target.get());
     resolve(expr->index.get());
     resolve(expr->value.get());
-    return {};
+    return std::monostate{};
 }
 
-std::any Resolver::visitArrayLiteralExpr(ArrayLiteralExpr* expr) {
+PortalgValue Resolver::visitArrayLiteralExpr(ArrayLiteralExpr* expr) {
     for(const auto& element : expr->elements) {
         resolve(element.get());
     }
-    return {};
+    return std::monostate{};
 }
 
-std::any Resolver::visitInstantiateExpr(InstantiateExpr* expr) {
+PortalgValue Resolver::visitInstantiateExpr(InstantiateExpr* expr) {
     resolve(expr->size.get());
     resolve(expr->initialValue.get());
-    return {};
+    return std::monostate{};
 }
 
 void Resolver::visitIfStmt(IfStmt* stmt) {

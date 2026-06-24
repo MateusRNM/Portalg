@@ -1,17 +1,15 @@
 let interpreter = null;
 
 async function initInterpreter() {
-    const dynamicImport = new Function('path', 'return import(path)');
-    const moduloInit = await dynamicImport('/interpreter/portalg.js');
-    interpreter = await moduloInit.default();
+    if(!interpreter) {
+        const module = await import('../../../static/interpreter/portalg.js');
+        interpreter = await module.default();
+    }
 }
-
-initInterpreter();
 
 self.onmessage = async (event) => {
     const { command, payload } = event.data;
-
-    if(!interpreter) return;
+    await initInterpreter();
 
     let result;
     switch(command) {

@@ -5,7 +5,10 @@ import { defineConfig } from 'vite';
 export default defineConfig({ 
     plugins: [tailwindcss(), sveltekit()],
     optimizeDeps: {
-        exclude: ['interpreter/portalg.js']
+        exclude: ['/interpreter/portalg.js']
+    },
+    ssr: {
+        noExternal: true
     },
     server: {
         port: 5173,

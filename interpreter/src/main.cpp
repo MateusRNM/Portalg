@@ -3,6 +3,7 @@
 #include <sstream>
 #include <string>
 #include <vector>
+#include <chrono>
 #include "Scanner.h"
 #include "Stmt.h"
 #include "Parser.h"
@@ -12,6 +13,7 @@
 #include "Interpreter.h"
 
 void run(const std::string& source) {
+    auto init = std::chrono::high_resolution_clock::now();
     ErrorHandler errorHandler;
     Scanner scanner(source, errorHandler);
     
@@ -40,6 +42,9 @@ void run(const std::string& source) {
     } catch(const RuntimeError& error) {
         std::cerr << "Erro (Linha " << error.token.line << "): " << error.what() << "\n";
     }
+    auto end = std::chrono::high_resolution_clock::now();
+    auto time = std::chrono::duration_cast<std::chrono::milliseconds>(end - init).count();
+    std::cout << "Tempo de execucao: " << time << " ms\n";
 }
 
 void runFile(const char* path) {
